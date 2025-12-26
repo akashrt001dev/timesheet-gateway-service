@@ -58,9 +58,9 @@ def setup_logging(log_level: str = "INFO", use_json: bool = False):
     if use_json:
         formatter = JSONFormatter()
     else:
+        # Python 3.8 compatible formatter without 'defaults' parameter
         formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - [%(correlation_id)s] - %(message)s",
-            defaults={"correlation_id": "N/A"},
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
 
     console_handler.setFormatter(formatter)

@@ -261,10 +261,13 @@ class HeaderRemovalMiddleware(BaseHTTPMiddleware):
         Returns:
             Response without sensitive headers
         """
-        # Remove headers from request
-        for header in self.HEADERS_TO_REMOVE:
-            if header in request.headers:
-                del request.headers[header]
+        # Filter request headers (create new Headers without sensitive ones)
+        filtered_headers = {
+            name: value
+            for name, value in request.headers.items()
+            if name.lower() not in self.HEADERS_TO_REMOVE
+        }
+        request.headers = Headers(filtered_headers)
 
         response = await call_next(request)
 

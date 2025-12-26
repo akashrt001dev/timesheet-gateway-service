@@ -126,31 +126,16 @@ def create_app() -> FastAPI:
     # Root endpoint
     @app.get("/", tags=["Gateway"])
     async def root():
-        """
-        Gateway Service Root Endpoint
-        Returns gateway service information
-        """
+        """Gateway service root endpoint"""
         return {
-            "service": settings.app_name,
+            "service": "Gateway Service",
             "version": "1.0",
-            "environment": settings.environment,
             "status": "running",
-            "documentation": "/docs",
-            "message": "Gateway Service is running",
+            "docs": "/docs",
+            "health": "/health",
         }
 
-    # Health endpoint
-    @app.get("/health", tags=["Gateway"])
-    async def health():
-        """
-        Health Check Endpoint
-        Returns service health status
-        """
-        return {
-            "status": "healthy",
-            "service": settings.app_name,
-            "environment": settings.environment,
-        }
+    # Include routers
     app.include_router(actuator_routes.router)
     app.include_router(gateway_routes.router)
 

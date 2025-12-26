@@ -11,6 +11,7 @@ from pydantic import Field, field_validator, ConfigDict
 
 
 class GatewayRouteConfig: 
+    
     """Gateway Route Configuration"""
 
     ROUTES = {

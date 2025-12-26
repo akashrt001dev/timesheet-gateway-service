@@ -3,10 +3,11 @@ FastAPI Gateway Configuration Module
 Converts Spring Boot application.yml to Pydantic Settings
 """
 import logging
+import json
 from typing import List, Optional
 from functools import lru_cache
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, field_validator
 
 
 class GatewayRouteConfig:
@@ -102,6 +103,66 @@ class Settings(BaseSettings):
         default=["GET", "POST", "PUT", "DELETE", "OPTIONS"], alias="CORS_METHODS"
     )
     cors_headers: List[str] = Field(default=["*"], alias="CORS_HEADERS")
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS origins from string, JSON, or list"""
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            # Try to parse as JSON array first
+            if v.startswith("["):
+                try:
+                    return json.loads(v)
+                except (json.JSONDecodeError, ValueError):
+                    pass
+            # Try to parse as comma-separated values
+            if "," in v:
+                return [origin.strip() for origin in v.split(",")]
+            # Single value
+            return [v]
+        return v
+
+    @field_validator("cors_methods", mode="before")
+    @classmethod
+    def parse_cors_methods(cls, v):
+        """Parse CORS methods from string, JSON, or list"""
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            # Try to parse as JSON array first
+            if v.startswith("["):
+                try:
+                    return json.loads(v)
+                except (json.JSONDecodeError, ValueError):
+                    pass
+            # Try to parse as comma-separated values
+            if "," in v:
+                return [method.strip() for method in v.split(",")]
+            # Single value
+            return [v]
+        return v
+
+    @field_validator("cors_headers", mode="before")
+    @classmethod
+    def parse_cors_headers(cls, v):
+        """Parse CORS headers from string, JSON, or list"""
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            # Try to parse as JSON array first
+            if v.startswith("["):
+                try:
+                    return json.loads(v)
+                except (json.JSONDecodeError, ValueError):
+                    pass
+            # Try to parse as comma-separated values
+            if "," in v:
+                return [header.strip() for header in v.split(",")]
+            # Single value
+            return [v]
+        return v
 
     # Actuator Configuration
     actuator_enabled: bool = Field(default=True, alias="ACTUATOR_ENABLED")

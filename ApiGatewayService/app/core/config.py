@@ -4,10 +4,10 @@ Converts Spring Boot application.yml to Pydantic Settings
 """
 import logging
 import json
-from typing import List, Optional
+from typing import List, Optional, Union
 from functools import lru_cache
 from pydantic_settings import BaseSettings
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, ConfigDict
 
 
 class GatewayRouteConfig:
@@ -59,6 +59,12 @@ class GatewayRouteConfig:
 class Settings(BaseSettings):
     """Application Settings from environment variables"""
 
+    model_config = ConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        validate_assignment=True,
+    )
+
     # Server Configuration
     server_port: int = Field(default=8000, alias="SERVER_PORT")
     server_host: str = Field(default="0.0.0.0", alias="SERVER_HOST")
@@ -97,72 +103,63 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
     # CORS Configuration
-    cors_origins: List[str] = Field(default=["*"], alias="CORS_ORIGINS")
+    cors_origins: Union[str, List[str]] = Field(default="*", alias="CORS_ORIGINS")
     cors_credentials: bool = Field(default=True, alias="CORS_CREDENTIALS")
-    cors_methods: List[str] = Field(
-        default=["GET", "POST", "PUT", "DELETE", "OPTIONS"], alias="CORS_METHODS"
+    cors_methods: Union[str, List[str]] = Field(
+        default="GET,POST,PUT,DELETE,OPTIONS", alias="CORS_METHODS"
     )
-    cors_headers: List[str] = Field(default=["*"], alias="CORS_HEADERS")
+    cors_headers: Union[str, List[str]] = Field(default="*", alias="CORS_HEADERS")
 
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, v):
-        """Parse CORS origins from string, JSON, or list"""
-        if isinstance(v, list):
-            return v
-        if isinstance(v, str):
-            # Try to parse as JSON array first
-            if v.startswith("["):
-                try:
-                    return json.loads(v)
-                except (json.JSONDecodeError, ValueError):
-                    pass
-            # Try to parse as comma-separated values
-            if "," in v:
-                return [origin.strip() for origin in v.split(",")]
-            # Single value
-            return [v]
-        return v
+        """Parse CORS origins from various formats to list"""
+        return cls._parse_list_field(v)
 
     @field_validator("cors_methods", mode="before")
     @classmethod
     def parse_cors_methods(cls, v):
-        """Parse CORS methods from string, JSON, or list"""
-        if isinstance(v, list):
-            return v
-        if isinstance(v, str):
-            # Try to parse as JSON array first
-            if v.startswith("["):
-                try:
-                    return json.loads(v)
-                except (json.JSONDecodeError, ValueError):
-                    pass
-            # Try to parse as comma-separated values
-            if "," in v:
-                return [method.strip() for method in v.split(",")]
-            # Single value
-            return [v]
-        return v
+        """Parse CORS methods from various formats to list"""
+        return cls._parse_list_field(v)
 
     @field_validator("cors_headers", mode="before")
     @classmethod
     def parse_cors_headers(cls, v):
-        """Parse CORS headers from string, JSON, or list"""
+        """Parse CORS headers from various formats to list"""
+        return cls._parse_list_field(v)
+
+    @staticmethod
+    def _parse_list_field(v):
+        """Helper to parse list fields from various input formats"""
+        # Already a list, return as-is
         if isinstance(v, list):
             return v
-        if isinstance(v, str):
-            # Try to parse as JSON array first
-            if v.startswith("["):
-                try:
-                    return json.loads(v)
-                except (json.JSONDecodeError, ValueError):
-                    pass
-            # Try to parse as comma-separated values
-            if "," in v:
-                return [header.strip() for header in v.split(",")]
-            # Single value
+        
+        # Convert to string for processing
+        if not isinstance(v, str):
+            return [str(v)]
+        
+        v = v.strip()
+        
+        # Try to parse as JSON array
+        if v.startswith("["):
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+            except (json.JSONDecodeError, ValueError):
+                pass
+        
+        # Handle comma-separated values
+        if "," in v:
+            return [item.strip() for item in v.split(",") if item.strip()]
+        
+        # Single value (including "*")
+        if v:
             return [v]
-        return v
+        
+        # Empty/null - return default
+        return []
 
     # Actuator Configuration
     actuator_enabled: bool = Field(default=True, alias="ACTUATOR_ENABLED")
@@ -176,15 +173,19 @@ class Settings(BaseSettings):
         default="http://localhost:9411/api/v2/spans", alias="ZIPKIN_URL"
     )
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-
 
 @lru_cache()
 def get_settings() -> Settings:
     """Get settings singleton instance"""
-    return Settings()
+    try:
+        return Settings()
+    except Exception as e:
+        print(f"ERROR loading settings: {e}")
+        print("Make sure your .env file has proper format for list fields:")
+        print("  CORS_ORIGINS=*")
+        print("  CORS_ORIGINS=http://localhost:3000,http://localhost:8000")
+        print('  CORS_ORIGINS=["http://localhost:3000","http://localhost:8000"]')
+        raise
 
 
 # Export gateway routes

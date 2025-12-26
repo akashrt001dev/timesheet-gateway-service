@@ -118,6 +118,8 @@ class RouterValidator:
     """
 
     OPEN_API_ENDPOINTS = {
+        "/",
+        "/health",
         "/auth/login",
         "/user/registerUserList",
         "/user/register",

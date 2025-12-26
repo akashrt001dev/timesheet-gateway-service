@@ -24,10 +24,10 @@ class GatewayRouteConfig:
                 "/roles/**"
             ],
             "rewrites": {
-                "/user-management-service/(?P<path>.*)": "/$path",
-                "/auth/(?P<path>.*)": "/$path",
-                "/user/(?P<path>.*)": "/$path",
-                "/roles/(?P<path>.*)": "/$path",
+                "/user-management-service/(?<path>.*)": "${path}",
+                "/auth/(?<path>.*)": "/${'path'}",
+                "/user/(?<path>.*)": "/${'path'}",
+                "/roles/(?<path>.*)": "/${'path'}",
             },
             "remove_headers": ["Cookie", "Set-Cookie"],
         },
@@ -40,9 +40,9 @@ class GatewayRouteConfig:
                 "/contracts/**"
             ],
             "rewrites": {
-                "/contract-managment-service/(?P<path>.*)": "/$path",
-                "/contract-management-service/(?P<path>.*)": "/$path",
-                "/contracts/(?P<path>.*)": "/$path",
+                "/contract-managment-service/(?<path>.*)": "${path}",
+                "/contract-management-service/(?<path>.*)": "${path}",
+                "/contracts/(?<path>.*)": "/${'path'}",
             },
             "remove_headers": ["Cookie", "Set-Cookie"],
         },
@@ -55,9 +55,9 @@ class GatewayRouteConfig:
                 "/app/entitySitePortal/**"
             ],
             "rewrites": {
-                "/entity-service/(?P<path>.*)": "/$path",
-                "/entity/(?P<path>.*)": "/$path",
-                "/app/entitySitePortal/(?P<path>.*)": "/entitySitePortal/$path",
+                "/entity-service/(?<path>.*)": "${path}",
+                "/entity/(?<path>.*)": "/${'path'}",
+                "/app/entitySitePortal/(?<path>.*)": "/entitySitePortal/${'path'}",
             },
             "remove_headers": ["Cookie", "Set-Cookie"],
         },
@@ -70,9 +70,9 @@ class GatewayRouteConfig:
                 "/activity/**"
             ],
             "rewrites": {
-                "/timesheet-management-service/(?P<path>.*)": "/$path",
-                "/timesheet/(?P<path>.*)": "/$path",
-                "/activity/(?P<path>.*)": "/$path",
+                "/timesheet-management-service/(?<path>.*)": "${path}",
+                "/timesheet/(?<path>.*)": "/${'path'}",
+                "/activity/(?<path>.*)": "/${'path'}",
             },
             "remove_headers": ["Cookie", "Set-Cookie"],
         },

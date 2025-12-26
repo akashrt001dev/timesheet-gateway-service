@@ -18,6 +18,8 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - EUREKA_ENABLED=${EUREKA_ENABLED:-true}
       - EUREKA_SERVER_URL=${EUREKA_SERVER_URL:-http://discovery-service:8761/eureka/}
+    volumes:
+      - /var/www/html:/var/www/html:ro
     networks:
       - microservices
     # depends_on:

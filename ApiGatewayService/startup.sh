@@ -12,8 +12,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$SCRIPT_DIR"  # Script is in project root
 PID_FILE="$PROJECT_DIR/.gateway.pid"
 LOG_FILE="$PROJECT_DIR/gateway.log"
-PYTHON_CMD="python"
 MODULE="app.main:app"
+
+# Python detection - use PYTHON_PATH if set, otherwise auto-detect
+if [ -z "$PYTHON_PATH" ]; then
+    if command -v python3 &> /dev/null; then
+        PYTHON_CMD="python3"
+    elif command -v python &> /dev/null; then
+        PYTHON_CMD="python"
+    else
+        echo "Error: Python is not installed or not in PATH"
+        echo "Please install Python 3.8+ or set PYTHON_PATH environment variable"
+        exit 1
+    fi
+else
+    PYTHON_CMD="$PYTHON_PATH"
+fi
 
 ################################################################################
 # Functions
@@ -55,9 +69,23 @@ EOF
 }
 
 ensure_venv() {
+    # Verify Python is available and working
+    if ! command -v "$PYTHON_CMD" &> /dev/null; then
+        echo "Error: Python command '$PYTHON_CMD' not found"
+        echo "Please install Python 3.8+ or set PYTHON_PATH environment variable"
+        exit 1
+    fi
+
+    # Check Python version
+    PYTHON_VERSION=$($PYTHON_CMD --version 2>&1)
+    echo "Using $PYTHON_VERSION"
+
     if [ ! -d "$PROJECT_DIR/venv" ]; then
         echo "Creating Python virtual environment..."
-        $PYTHON_CMD -m venv "$PROJECT_DIR/venv"
+        if ! $PYTHON_CMD -m venv "$PROJECT_DIR/venv"; then
+            echo "Error: Failed to create virtual environment"
+            exit 1
+        fi
     fi
 
     if [ -f "$PROJECT_DIR/venv/bin/activate" ]; then

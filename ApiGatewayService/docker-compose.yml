@@ -20,8 +20,8 @@ services:
       - EUREKA_SERVER_URL=${EUREKA_SERVER_URL:-http://discovery-service:8761/eureka/}
     networks:
       - microservices
-    depends_on:
-      - discovery-service
+    # depends_on:
+    #   - discovery-service
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/actuator/health"]
       interval: 30s
@@ -35,19 +35,19 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  discovery-service:
-    image: discovery-service-discovery-service:latest
-    container_name: discovery-service
-    ports:
-      - "8761:8761"
-    networks:
-      - microservices
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+  # discovery-service:
+  #   image: discovery-service-discovery-service:latest
+  #   container_name: discovery-service
+  #   ports:
+  #     - "8761:8761"
+  #   networks:
+  #     - microservices
+  #   restart: unless-stopped
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
 
 networks:
   microservices:

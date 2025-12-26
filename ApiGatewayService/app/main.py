@@ -123,6 +123,16 @@ def create_app() -> FastAPI:
             },
         )
 
+    # Health/Status endpoint - required for monitoring and k8s probes
+    @app.get("/health", tags=["Gateway"])
+    async def health():
+        """Gateway health check endpoint"""
+        return {
+            "status": "healthy",
+            "service": settings.app_name,
+            "version": "1.0",
+        }
+
     # Include gateway routing (primary purpose of the gateway)
     app.include_router(gateway_routes.router)
 

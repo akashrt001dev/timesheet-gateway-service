@@ -123,7 +123,20 @@ def create_app() -> FastAPI:
             },
         )
 
-    # Serve static Flutter app files BEFORE router to prioritize static files
+    # Health/Status endpoint - required for monitoring and k8s probes
+    @app.get("/health", tags=["Gateway"])
+    async def health():
+        """Gateway health check endpoint"""
+        return {
+            "status": "healthy",
+            "service": settings.app_name,
+            "version": "1.0",
+        }
+
+    # Include gateway routing (primary purpose of the gateway)
+    app.include_router(gateway_routes.router)
+
+    # Serve static Flutter app files
     from fastapi.staticfiles import StaticFiles
     import os
     
@@ -144,9 +157,6 @@ def create_app() -> FastAPI:
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
     else:
         logger.warning("No static files directory found. Frontend will not be served.")
-
-    # Include gateway routing AFTER static files mount
-    app.include_router(gateway_routes.router)
 
     # Create minimal OpenAPI schema - gateway should be transparent
     app.openapi_schema = None

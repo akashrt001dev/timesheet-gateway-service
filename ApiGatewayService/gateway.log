@@ -1,0 +1,108 @@
+2025-12-26 19:57:28,483 - app.main - INFO - Serving static files from: /var/www/html
+2025-12-26 19:57:28,483 - app.main - INFO - Application created: gateway-service
+2025-12-26 19:57:28,484 - app.main - INFO - Listening on 0.0.0.0:8000
+2025-12-26 19:57:28,484 - app.main - INFO - Gateway is ready to route requests to backend services
+INFO:     Started server process [130667]
+INFO:     Waiting for application startup.
+2025-12-26 19:57:28,484 - app.main - INFO - Starting gateway-service on 0.0.0.0:8000
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2025-12-26 19:57:36,499 - app.filters.middleware - INFO - [a2918847-42a0-424e-8ea1-712c2c727135] GET / | Correlation-ID: 5419647c-3c77-4147-83be-6d2aa53a21d2
+2025-12-26 19:57:36,500 - app.services.gateway_forwarder - WARNING - No route found for path: /
+2025-12-26 19:57:36,500 - app.main - ERROR - HTTP Exception: 404 - Route not found for /
+2025-12-26 19:57:36,500 - app.filters.middleware - INFO - [a2918847-42a0-424e-8ea1-712c2c727135] GET / | Status: 404 | Duration: 0.002s
+2025-12-26 19:57:40,309 - app.filters.middleware - INFO - [5c7591e7-33e3-4e1d-8364-4f645c7406be] GET /user-management-service/user/6424dea81a6c0d4b84d543a9/accessScope | Correlation-ID: 6f9699bd-99e8-4a17-bb35-061c2df3b5c2
+2025-12-26 19:57:40,317 - app.services.gateway_forwarder - INFO - Forwarding GET /user-management-service/user/6424dea81a6c0d4b84d543a9/accessScope to http://localhost:8001/user/6424dea81a6c0d4b84d543a9/accessScope
+2025-12-26 19:57:40,329 - app.filters.middleware - INFO - [5c7591e7-33e3-4e1d-8364-4f645c7406be] GET /user-management-service/user/6424dea81a6c0d4b84d543a9/accessScope | Status: 200 | Duration: 0.020s
+2025-12-26 19:59:03,466 - app.filters.middleware - INFO - [71cea662-52d3-4d37-834c-ac5fb44ef511] GET /actuator/env | Correlation-ID: 40dbcc43-2fe0-494b-8f3a-01217d064b51
+2025-12-26 19:59:03,466 - app.services.gateway_forwarder - WARNING - No route found for path: /actuator/env
+2025-12-26 19:59:03,467 - app.main - ERROR - HTTP Exception: 404 - Route not found for /actuator/env
+2025-12-26 19:59:03,467 - app.filters.middleware - INFO - [71cea662-52d3-4d37-834c-ac5fb44ef511] GET /actuator/env | Status: 404 | Duration: 0.001s
+2025-12-26 19:59:23,232 - app.filters.middleware - INFO - [8e462844-510a-4132-ac5c-8863084254a4] GET / | Correlation-ID: b1f9f2be-fa03-4af8-a189-70ddc62a367f
+2025-12-26 19:59:23,233 - app.services.gateway_forwarder - WARNING - No route found for path: /
+2025-12-26 19:59:23,235 - app.main - ERROR - HTTP Exception: 404 - Route not found for /
+2025-12-26 19:59:23,235 - app.filters.middleware - INFO - [8e462844-510a-4132-ac5c-8863084254a4] GET / | Status: 404 | Duration: 0.003s
+2025-12-26 20:00:08,152 - app.filters.middleware - INFO - [5363ac66-d369-4169-af5d-512121642feb] GET / | Correlation-ID: 68fb3e8c-20c0-4e72-9821-ac5bcfb2a2bb
+2025-12-26 20:00:08,153 - app.services.gateway_forwarder - WARNING - No route found for path: /
+2025-12-26 20:00:08,153 - app.main - ERROR - HTTP Exception: 404 - Route not found for /
+2025-12-26 20:00:08,153 - app.filters.middleware - INFO - [5363ac66-d369-4169-af5d-512121642feb] GET / | Status: 404 | Duration: 0.001s
+2025-12-26 20:00:27,042 - app.filters.middleware - INFO - [a28e6e03-dc79-4d86-97ee-29ea10924041] GET /user-management-service/docs | Correlation-ID: 79e23768-e29f-454c-9321-43ceee960a96
+2025-12-26 20:00:27,050 - app.services.gateway_forwarder - INFO - Forwarding GET /user-management-service/docs to http://localhost:8001/docs
+2025-12-26 20:00:27,054 - app.filters.middleware - INFO - [a28e6e03-dc79-4d86-97ee-29ea10924041] GET /user-management-service/docs | Status: 200 | Duration: 0.011s
+2025-12-26 20:00:27,902 - app.filters.middleware - INFO - [f12f0548-6657-491d-9dc4-05d07436293f] GET /openapi.json | Correlation-ID: 927e943c-acb9-4c2e-a6d3-9d1e7cea19d9
+2025-12-26 20:00:27,903 - app.filters.middleware - INFO - [f12f0548-6657-491d-9dc4-05d07436293f] GET /openapi.json | Status: 200 | Duration: 0.001s
+2025-12-26 20:00:35,110 - app.filters.middleware - INFO - [fc2c3914-bfb9-43db-a643-d221106dc460] GET /user-management-service/user | Correlation-ID: 4507e3f5-d683-41e5-b6f6-aebd0132d6a3
+2025-12-26 20:00:35,117 - app.services.gateway_forwarder - INFO - Forwarding GET /user-management-service/user to http://localhost:8001/user
+2025-12-26 20:00:35,122 - app.filters.middleware - INFO - [fc2c3914-bfb9-43db-a643-d221106dc460] GET /user-management-service/user | Status: 422 | Duration: 0.012s
+2025-12-26 20:00:39,997 - app.filters.middleware - INFO - [2e5d4f18-c326-4058-91a9-404423f045eb] GET /user-management-service/user/docs | Correlation-ID: 51eb6980-1f71-4410-a4f8-8cda97454526
+2025-12-26 20:00:40,003 - app.services.gateway_forwarder - INFO - Forwarding GET /user-management-service/user/docs to http://localhost:8001/user/docs
+2025-12-26 20:00:40,009 - app.filters.middleware - INFO - [2e5d4f18-c326-4058-91a9-404423f045eb] GET /user-management-service/user/docs | Status: 422 | Duration: 0.012s
+2025-12-26 20:00:46,503 - app.filters.middleware - INFO - [8f790364-65ec-4347-bdb7-3e3ea1fdabb5] GET /user-management-service | Correlation-ID: e39d97a8-8fef-4655-9fae-42bb5a0049df
+2025-12-26 20:00:46,503 - app.services.gateway_forwarder - WARNING - No route found for path: /user-management-service
+2025-12-26 20:00:46,503 - app.main - ERROR - HTTP Exception: 404 - Route not found for /user-management-service
+2025-12-26 20:00:46,504 - app.filters.middleware - INFO - [8f790364-65ec-4347-bdb7-3e3ea1fdabb5] GET /user-management-service | Status: 404 | Duration: 0.001s
+2025-12-26 20:00:54,857 - app.filters.middleware - INFO - [08c55121-ee2c-4fd9-b717-a73bc7135000] GET /user-management-service/ | Correlation-ID: 61c3d101-26d7-4419-bea4-78059af24005
+2025-12-26 20:00:54,865 - app.services.gateway_forwarder - INFO - Forwarding GET /user-management-service/ to http://localhost:8001/
+2025-12-26 20:00:54,870 - app.filters.middleware - INFO - [08c55121-ee2c-4fd9-b717-a73bc7135000] GET /user-management-service/ | Status: 200 | Duration: 0.013s
+2025-12-26 20:01:00,248 - app.filters.middleware - INFO - [2fcac635-b9a4-4fc5-91ee-244c91682ac6] GET /user-management-service/docks | Correlation-ID: 92d8e398-bbaa-4913-b0e9-12e88d4428a1
+2025-12-26 20:01:00,255 - app.services.gateway_forwarder - INFO - Forwarding GET /user-management-service/docks to http://localhost:8001/docks
+2025-12-26 20:01:00,260 - app.filters.middleware - INFO - [2fcac635-b9a4-4fc5-91ee-244c91682ac6] GET /user-management-service/docks | Status: 404 | Duration: 0.012s
+2025-12-26 20:01:03,983 - app.filters.middleware - INFO - [4dddd1f1-1b01-4c6f-bfe1-a8d00067e775] GET /user-management-service/docs | Correlation-ID: 531c016d-a431-4da4-9daa-8e4fa1a98d13
+2025-12-26 20:01:03,990 - app.services.gateway_forwarder - INFO - Forwarding GET /user-management-service/docs to http://localhost:8001/docs
+2025-12-26 20:01:03,996 - app.filters.middleware - INFO - [4dddd1f1-1b01-4c6f-bfe1-a8d00067e775] GET /user-management-service/docs | Status: 200 | Duration: 0.014s
+2025-12-26 20:01:04,267 - app.filters.middleware - INFO - [7b65bd22-1e1c-4d0a-a8d0-301054d89e38] GET /openapi.json | Correlation-ID: c27004d8-a5df-4369-a66a-dc3dc8a7933a
+2025-12-26 20:01:04,268 - app.filters.middleware - INFO - [7b65bd22-1e1c-4d0a-a8d0-301054d89e38] GET /openapi.json | Status: 200 | Duration: 0.001s
+2025-12-26 20:01:07,081 - app.filters.middleware - INFO - [1c877d76-1034-4bfc-9964-cce40c33eafe] GET /user-management-service | Correlation-ID: 73eef1c6-8c2e-4b9b-9e72-6e7b8437e3df
+2025-12-26 20:01:07,082 - app.services.gateway_forwarder - WARNING - No route found for path: /user-management-service
+2025-12-26 20:01:07,082 - app.main - ERROR - HTTP Exception: 404 - Route not found for /user-management-service
+2025-12-26 20:01:07,083 - app.filters.middleware - INFO - [1c877d76-1034-4bfc-9964-cce40c33eafe] GET /user-management-service | Status: 404 | Duration: 0.002s
+2025-12-26 20:01:07,292 - app.filters.middleware - INFO - [6e784120-ed9d-4e73-8f53-8fbde611f09a] GET /actuator/env | Correlation-ID: ea527aaa-bc0d-48bc-98f2-b8e204c506a9
+2025-12-26 20:01:07,293 - app.services.gateway_forwarder - WARNING - No route found for path: /actuator/env
+2025-12-26 20:01:07,293 - app.main - ERROR - HTTP Exception: 404 - Route not found for /actuator/env
+2025-12-26 20:01:07,293 - app.filters.middleware - INFO - [6e784120-ed9d-4e73-8f53-8fbde611f09a] GET /actuator/env | Status: 404 | Duration: 0.001s
+2025-12-26 20:01:10,756 - app.filters.middleware - INFO - [c2b6d8cc-c8c7-4db7-b760-b1590115dfc8] GET /user-management-service/ | Correlation-ID: cdff2fe2-23a7-4167-a1c2-bad61a608640
+2025-12-26 20:01:10,763 - app.services.gateway_forwarder - INFO - Forwarding GET /user-management-service/ to http://localhost:8001/
+2025-12-26 20:01:10,768 - app.filters.middleware - INFO - [c2b6d8cc-c8c7-4db7-b760-b1590115dfc8] GET /user-management-service/ | Status: 200 | Duration: 0.012s
+2025-12-26 20:01:37,033 - app.filters.middleware - INFO - [8bc95e52-4bcc-4ce1-b887-bd6ea483d255] GET /actuator/env | Correlation-ID: ee104bf8-c986-4510-90de-986620d7206f
+2025-12-26 20:01:37,033 - app.services.gateway_forwarder - WARNING - No route found for path: /actuator/env
+2025-12-26 20:01:37,033 - app.main - ERROR - HTTP Exception: 404 - Route not found for /actuator/env
+2025-12-26 20:01:37,034 - app.filters.middleware - INFO - [8bc95e52-4bcc-4ce1-b887-bd6ea483d255] GET /actuator/env | Status: 404 | Duration: 0.001s
+2025-12-26 20:02:44,787 - app.filters.middleware - INFO - [7b04bd5d-17b8-427f-b107-8f05caef3467] GET /actuator/env | Correlation-ID: ba8520ac-53e8-48cc-8d82-7b6e7bf6486e
+2025-12-26 20:02:44,787 - app.services.gateway_forwarder - WARNING - No route found for path: /actuator/env
+2025-12-26 20:02:44,787 - app.main - ERROR - HTTP Exception: 404 - Route not found for /actuator/env
+2025-12-26 20:02:44,788 - app.filters.middleware - INFO - [7b04bd5d-17b8-427f-b107-8f05caef3467] GET /actuator/env | Status: 404 | Duration: 0.001s
+2025-12-26 20:03:06,965 - app.filters.middleware - INFO - [b3880b22-2527-4886-baac-97e5d9ea4f94] GET /actuator/env | Correlation-ID: 856c75b2-0e44-4de7-aad6-2b145a86f398
+2025-12-26 20:03:06,965 - app.services.gateway_forwarder - WARNING - No route found for path: /actuator/env
+2025-12-26 20:03:06,965 - app.main - ERROR - HTTP Exception: 404 - Route not found for /actuator/env
+2025-12-26 20:03:06,968 - app.filters.middleware - INFO - [b3880b22-2527-4886-baac-97e5d9ea4f94] GET /actuator/env | Status: 404 | Duration: 0.003s
+2025-12-26 20:05:18,785 - app.filters.middleware - INFO - [acc0bc8a-c57b-44c5-9370-7d6b9aece7eb] GET /actuator/env | Correlation-ID: 5201dfa8-56a4-4578-9b14-cb76930ea1cd
+2025-12-26 20:05:18,786 - app.services.gateway_forwarder - WARNING - No route found for path: /actuator/env
+2025-12-26 20:05:18,786 - app.main - ERROR - HTTP Exception: 404 - Route not found for /actuator/env
+2025-12-26 20:05:18,786 - app.filters.middleware - INFO - [acc0bc8a-c57b-44c5-9370-7d6b9aece7eb] GET /actuator/env | Status: 404 | Duration: 0.001s
+2025-12-26 20:12:19,081 - app.filters.middleware - INFO - [e6e32d7e-349f-4471-b7ff-893ca183822e] GET /actuator/env | Correlation-ID: f95662c8-5053-426c-8ca2-5670cf1dbdab
+2025-12-26 20:12:19,081 - app.services.gateway_forwarder - WARNING - No route found for path: /actuator/env
+2025-12-26 20:12:19,081 - app.main - ERROR - HTTP Exception: 404 - Route not found for /actuator/env
+2025-12-26 20:12:19,082 - app.filters.middleware - INFO - [e6e32d7e-349f-4471-b7ff-893ca183822e] GET /actuator/env | Status: 404 | Duration: 0.001s
+2025-12-26 20:12:23,464 - app.filters.middleware - INFO - [f6df2bc3-4283-48c1-89be-a6b41b20ab8d] GET /actuator/env | Correlation-ID: 61ce3a02-f404-42b6-b0c1-0f6d360052dd
+2025-12-26 20:12:23,465 - app.services.gateway_forwarder - WARNING - No route found for path: /actuator/env
+2025-12-26 20:12:23,465 - app.main - ERROR - HTTP Exception: 404 - Route not found for /actuator/env
+2025-12-26 20:12:23,465 - app.filters.middleware - INFO - [f6df2bc3-4283-48c1-89be-a6b41b20ab8d] GET /actuator/env | Status: 404 | Duration: 0.001s
+2025-12-26 20:13:08,749 - app.filters.middleware - INFO - [4df7a70e-8767-498d-a4d6-43c1445630cd] GET /actuator/env | Correlation-ID: 1f78c52f-739a-4d76-9521-ecaf801765aa
+2025-12-26 20:13:08,750 - app.services.gateway_forwarder - WARNING - No route found for path: /actuator/env
+2025-12-26 20:13:08,750 - app.main - ERROR - HTTP Exception: 404 - Route not found for /actuator/env
+2025-12-26 20:13:08,751 - app.filters.middleware - INFO - [4df7a70e-8767-498d-a4d6-43c1445630cd] GET /actuator/env | Status: 404 | Duration: 0.001s
+2025-12-26 21:22:17,851 - app.filters.middleware - INFO - [48de7520-f85d-43c0-add1-a5b2d1833de8] GET / | Correlation-ID: 2390cec8-3b90-4280-8e85-3e993f8a13df
+2025-12-26 21:22:17,851 - app.services.gateway_forwarder - WARNING - No route found for path: /
+2025-12-26 21:22:17,851 - app.main - ERROR - HTTP Exception: 404 - Route not found for /
+2025-12-26 21:22:17,852 - app.filters.middleware - INFO - [48de7520-f85d-43c0-add1-a5b2d1833de8] GET / | Status: 404 | Duration: 0.001s
+2025-12-26 21:22:45,035 - app.filters.middleware - INFO - [91307508-3917-4d5f-b2ed-a13b8ac8279d] GET /actuator/gateway/routes | Correlation-ID: b5af5a37-61b8-46ba-ab27-5f84d8a21027
+2025-12-26 21:22:45,036 - app.services.gateway_forwarder - WARNING - No route found for path: /actuator/gateway/routes
+2025-12-26 21:22:45,036 - app.main - ERROR - HTTP Exception: 404 - Route not found for /actuator/gateway/routes
+2025-12-26 21:22:45,036 - app.filters.middleware - INFO - [91307508-3917-4d5f-b2ed-a13b8ac8279d] GET /actuator/gateway/routes | Status: 404 | Duration: 0.001s
+2025-12-26 21:24:21,203 - app.filters.middleware - INFO - [61abeb7d-65c5-4fa4-ac6f-cbc62292c731] GET /user-management-service/user/6424dea81a6c0d4b84d543a9/accessScope | Correlation-ID: d1e2edeb-3a37-4321-841b-3d9abea90cc7
+2025-12-26 21:24:21,210 - app.services.gateway_forwarder - INFO - Forwarding GET /user-management-service/user/6424dea81a6c0d4b84d543a9/accessScope to http://localhost:8001/user/6424dea81a6c0d4b84d543a9/accessScope
+2025-12-26 21:24:21,245 - app.filters.middleware - INFO - [61abeb7d-65c5-4fa4-ac6f-cbc62292c731] GET /user-management-service/user/6424dea81a6c0d4b84d543a9/accessScope | Status: 200 | Duration: 0.042s
+2025-12-26 21:33:16,956 - app.filters.middleware - INFO - [556a520e-27d3-44b5-a716-9cfe3f842d9e] GET / | Correlation-ID: 7f8408fb-18cf-4b92-9bd3-d517426cadd7
+2025-12-26 21:33:16,956 - app.services.gateway_forwarder - WARNING - No route found for path: /
+2025-12-26 21:33:16,956 - app.main - ERROR - HTTP Exception: 404 - Route not found for /
+2025-12-26 21:33:16,957 - app.filters.middleware - INFO - [556a520e-27d3-44b5-a716-9cfe3f842d9e] GET / | Status: 404 | Duration: 0.001s

@@ -21,7 +21,7 @@ from app.filters.middleware import (
     CORSMiddleware as CustomCORSMiddleware,
     HeaderRemovalMiddleware,
 )
-from app.api import gateway_routes, actuator_routes
+from app.api import gateway_routes
 
 logger = logging.getLogger(__name__)
 
@@ -123,74 +123,17 @@ def create_app() -> FastAPI:
             },
         )
 
-    # Root endpoint
-    @app.get("/", tags=["Gateway"])
-    async def root():
-        """Gateway service root endpoint"""
-        return {
-            "service": "Gateway Service",
-            "version": "1.0",
-            "status": "running",
-            "docs": "/docs",
-            "health": "/health",
-        }
-
-    # Include routers
-    app.include_router(actuator_routes.router)
+    # Include gateway routing (primary purpose of the gateway)
     app.include_router(gateway_routes.router)
 
-    # Custom OpenAPI schema
-    def custom_openapi():
-        """Customize OpenAPI schema"""
-        if app.openapi_schema:
-            return app.openapi_schema
-
-        openapi_schema = get_openapi(
-            title="GateWay REST API",
-            version="1.0",
-            description="GateWay API REST calls using FastAPI",
-            routes=app.routes,
-        )
-
-        # Add JWT security scheme
-        openapi_schema["components"]["securitySchemes"] = {
-            "bearer-jwt": {
-                "type": "http",
-                "scheme": "bearer",
-                "bearerFormat": "JWT",
-                "description": "JWT Bearer token",
-            }
-        }
-
-        # Apply security to all routes except public endpoints
-        public_endpoints = {
-            "/auth/login",
-            "/user/registerUserList",
-            "/user/register",
-            "/entityID",
-            "/user/setpassword",
-            "/user/updatepassword",
-            "/user/forgetpassword",
-            "/user",
-            "/entity/logo",
-            "/entity/logothumbnail",
-        }
-
-        for path in openapi_schema.get("paths", {}):
-            if path not in public_endpoints:
-                for method in openapi_schema["paths"][path]:
-                    if isinstance(openapi_schema["paths"][path][method], dict):
-                        openapi_schema["paths"][path][method]["security"] = [
-                            {"bearer-jwt": []}
-                        ]
-
-        app.openapi_schema = openapi_schema
-        return app.openapi_schema
-
-    app.openapi = custom_openapi
+    # Create minimal OpenAPI schema - gateway should be transparent
+    app.openapi_schema = None
+    app.openapi = lambda: None
 
     app_instance = app
     logger.info(f"Application created: {settings.app_name}")
+    logger.info(f"Listening on {settings.server_host}:{settings.server_port}")
+    logger.info("Gateway is ready to route requests to backend services")
 
     return app
 

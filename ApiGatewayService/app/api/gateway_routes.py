@@ -4,11 +4,21 @@ Defines all gateway routes and integrates routing logic
 """
 import logging
 from fastapi import APIRouter, Request, HTTPException, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from app.services.gateway_forwarder import forward_request
+import os
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+# Static file extensions that should be served directly
+STATIC_EXTENSIONS = {'.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.map', '.json', '.html'}
+
+def is_static_file(path: str) -> bool:
+    """Check if path is a static file"""
+    return any(path.lower().endswith(ext) for ext in STATIC_EXTENSIONS)
 
 
 @router.api_route(

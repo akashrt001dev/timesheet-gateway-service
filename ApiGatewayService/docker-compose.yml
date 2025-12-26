@@ -1,0 +1,54 @@
+services:
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api-gateway-service
+    ports:
+      - "${SERVER_PORT:-8000}:8000"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-local}
+      - SERVER_PORT=8000
+      - SERVER_HOST=0.0.0.0
+      - JWT_SECRET=${JWT_SECRET}
+      - USER_SERVICE_URL=${USER_SERVICE_URL:-http://host.docker.internal:8001}
+      - CONTRACT_SERVICE_URL=${CONTRACT_SERVICE_URL:-http://host.docker.internal:8002}
+      - ENTITY_SERVICE_URL=${ENTITY_SERVICE_URL:-http://host.docker.internal:8003}
+      - TIMESHEET_SERVICE_URL=${TIMESHEET_SERVICE_URL:-http://host.docker.internal:8004}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - EUREKA_ENABLED=${EUREKA_ENABLED:-true}
+      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL:-http://discovery-service:8761/eureka/}
+    networks:
+      - microservices
+    depends_on:
+      - discovery-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  discovery-service:
+    image: discovery-service-discovery-service:latest
+    container_name: discovery-service
+    ports:
+      - "8761:8761"
+    networks:
+      - microservices
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  microservices:
+    driver: bridge

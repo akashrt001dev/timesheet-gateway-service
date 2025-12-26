@@ -1,0 +1,3 @@
+"""
+FastAPI Gateway Application Package
+"""

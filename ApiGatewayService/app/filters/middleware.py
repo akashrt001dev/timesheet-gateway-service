@@ -4,13 +4,14 @@ Converts Spring Cloud Gateway filters to FastAPI middleware
 """
 import logging
 import time
+import json
 from typing import Callable, Optional
 from uuid import uuid4
 import httpx
 from fastapi import Request, Response, HTTPException, status
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.datastructures import Headers
-from starlette.responses import StreamingResponse
+from starlette.responses import StreamingResponse, JSONResponse
 from app.core.security import RouterValidator, get_jwt_util
 from app.core.logging import generate_correlation_id
 
@@ -46,18 +47,18 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         # Check if Authorization header is present
         if RouterValidator.is_auth_missing(request):
             logger.warning(f"Authorization header missing for {path}")
-            raise HTTPException(
+            return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authorization header is missing in request",
+                content={"detail": "Authorization header is missing in request"},
             )
 
         # Extract and validate token
         token = RouterValidator.get_auth_header(request)
         if not token:
             logger.warning(f"Invalid Authorization header format for {path}")
-            raise HTTPException(
+            return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authorization header is invalid",
+                content={"detail": "Authorization header is invalid"},
             )
 
         # Validate JWT token
@@ -76,8 +77,17 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     {**request.headers, header_key: header_value}
                 )
 
-        except HTTPException:
-            raise
+        except HTTPException as e:
+            return JSONResponse(
+                status_code=e.status_code,
+                content={"detail": e.detail},
+            )
+        except Exception as e:
+            logger.error(f"Token validation error: {str(e)}")
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"detail": "Unauthorized"},
+            )
 
         return await call_next(request)
 

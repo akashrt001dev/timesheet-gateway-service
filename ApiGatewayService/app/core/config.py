@@ -17,8 +17,14 @@ class GatewayRouteConfig:
         "user-management-service": {
             "id": "user-management-service",
             "uri": "lb://user-management-service",
-            "predicates": ["/auth/**", "/user/**", "/roles/**"],
+            "predicates": [
+                "/user-management-service/**",
+                "/auth/**",
+                "/user/**",
+                "/roles/**"
+            ],
             "rewrites": {
+                "/user-management-service/(?P<path>.*)": "/$path",
                 "/auth/(?P<path>.*)": "/$path",
                 "/user/(?P<path>.*)": "/$path",
                 "/roles/(?P<path>.*)": "/$path",
@@ -28,8 +34,14 @@ class GatewayRouteConfig:
         "contract-management-service": {
             "id": "contract-management-service",
             "uri": "lb://contract-management-service",
-            "predicates": ["/contracts/**"],
+            "predicates": [
+                "/contract-managment-service/**",
+                "/contract-management-service/**",
+                "/contracts/**"
+            ],
             "rewrites": {
+                "/contract-managment-service/(?P<path>.*)": "/$path",
+                "/contract-management-service/(?P<path>.*)": "/$path",
                 "/contracts/(?P<path>.*)": "/$path",
             },
             "remove_headers": ["Cookie", "Set-Cookie"],
@@ -37,8 +49,13 @@ class GatewayRouteConfig:
         "entity-service": {
             "id": "entity-service",
             "uri": "lb://entity-service",
-            "predicates": ["/entity/**", "/app/entitySitePortal/**"],
+            "predicates": [
+                "/entity-service/**",
+                "/entity/**",
+                "/app/entitySitePortal/**"
+            ],
             "rewrites": {
+                "/entity-service/(?P<path>.*)": "/$path",
                 "/entity/(?P<path>.*)": "/$path",
                 "/app/entitySitePortal/(?P<path>.*)": "/entitySitePortal/$path",
             },
@@ -47,8 +64,13 @@ class GatewayRouteConfig:
         "timesheet-management-service": {
             "id": "timesheet-management-service",
             "uri": "lb://timesheet-management-service",
-            "predicates": ["/timesheet/**", "/activity/**"],
+            "predicates": [
+                "/timesheet-management-service/**",
+                "/timesheet/**",
+                "/activity/**"
+            ],
             "rewrites": {
+                "/timesheet-management-service/(?P<path>.*)": "/$path",
                 "/timesheet/(?P<path>.*)": "/$path",
                 "/activity/(?P<path>.*)": "/$path",
             },

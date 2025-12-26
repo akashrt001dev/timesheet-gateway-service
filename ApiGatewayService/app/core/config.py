@@ -19,16 +19,16 @@ class GatewayRouteConfig:
             "id": "user-management-service",
             "uri": "lb://user-management-service",
             "predicates": [
-                "/user-management-service/**",
-                "/auth/**",
-                "/user/**",
-                "/roles/**"
+                "/api/user-management-service/**",
+                "/api/auth/**",
+                "/api/user/**",
+                "/api/roles/**"
             ],
             "rewrites": {
-                "/user-management-service/(?<path>.*)": "${path}",
-                "/auth/(?<path>.*)": "/${'path'}",
-                "/user/(?<path>.*)": "/${'path'}",
-                "/roles/(?<path>.*)": "/${'path'}",
+                "/api/user-management-service/(?<path>.*)": "/${path}",
+                "/api/auth/(?<path>.*)": "/${path}",
+                "/api/user/(?<path>.*)": "/${path}",
+                "/api/roles/(?<path>.*)": "/${path}",
             },
             "remove_headers": ["Cookie", "Set-Cookie"],
         },
@@ -36,14 +36,14 @@ class GatewayRouteConfig:
             "id": "contract-management-service",
             "uri": "lb://contract-management-service",
             "predicates": [
-                "/contract-managment-service/**",
-                "/contract-management-service/**",
-                "/contracts/**"
+                "/api/contract-managment-service/**",
+                "/api/contract-management-service/**",
+                "/api/contracts/**"
             ],
             "rewrites": {
-                "/contract-managment-service/(?<path>.*)": "${path}",
-                "/contract-management-service/(?<path>.*)": "${path}",
-                "/contracts/(?<path>.*)": "/${'path'}",
+                "/api/contract-managment-service/(?<path>.*)": "/${path}",
+                "/api/contract-management-service/(?<path>.*)": "/${path}",
+                "/api/contracts/(?<path>.*)": "/${path}",
             },
             "remove_headers": ["Cookie", "Set-Cookie"],
         },
@@ -51,14 +51,14 @@ class GatewayRouteConfig:
             "id": "entity-service",
             "uri": "lb://entity-service",
             "predicates": [
-                "/entity-service/**",
-                "/entity/**",
-                "/app/entitySitePortal/**"
+                "/api/entity-service/**",
+                "/api/entity/**",
+                "/api/app/entitySitePortal/**"
             ],
             "rewrites": {
-                "/entity-service/(?<path>.*)": "${path}",
-                "/entity/(?<path>.*)": "/${'path'}",
-                "/app/entitySitePortal/(?<path>.*)": "/entitySitePortal/${'path'}",
+                "/api/entity-service/(?<path>.*)": "/${path}",
+                "/api/entity/(?<path>.*)": "/${path}",
+                "/api/app/entitySitePortal/(?<path>.*)": "/entitySitePortal/${path}",
             },
             "remove_headers": ["Cookie", "Set-Cookie"],
         },
@@ -66,14 +66,14 @@ class GatewayRouteConfig:
             "id": "timesheet-management-service",
             "uri": "lb://timesheet-management-service",
             "predicates": [
-                "/timesheet-management-service/**",
-                "/timesheet/**",
-                "/activity/**"
+                "/api/timesheet-management-service/**",
+                "/api/timesheet/**",
+                "/api/activity/**"
             ],
             "rewrites": {
-                "/timesheet-management-service/(?<path>.*)": "${path}",
-                "/timesheet/(?<path>.*)": "/${'path'}",
-                "/activity/(?<path>.*)": "/${'path'}",
+                "/api/timesheet-management-service/(?<path>.*)": "/${path}",
+                "/api/timesheet/(?<path>.*)": "/${path}",
+                "/api/activity/(?<path>.*)": "/${path}",
             },
             "remove_headers": ["Cookie", "Set-Cookie"],
         },

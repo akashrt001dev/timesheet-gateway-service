@@ -252,7 +252,7 @@ class HeaderRemovalMiddleware(BaseHTTPMiddleware):
         self, request: Request, call_next: Callable
     ) -> Response:
         """
-        Remove sensitive headers from request and response
+        Remove sensitive headers from response
 
         Args:
             request: Incoming request
@@ -261,17 +261,12 @@ class HeaderRemovalMiddleware(BaseHTTPMiddleware):
         Returns:
             Response without sensitive headers
         """
-        # Filter request headers (create new Headers without sensitive ones)
-        filtered_headers = {
-            name: value
-            for name, value in request.headers.items()
-            if name.lower() not in self.HEADERS_TO_REMOVE
-        }
-        request.headers = Headers(filtered_headers)
-
+        # Note: Request headers are immutable in Starlette, so we cannot modify them
+        # The upstream services will handle cookie management
+        
         response = await call_next(request)
 
-        # Remove headers from response
+        # Remove sensitive headers from response
         headers_to_remove = []
         for header in self.HEADERS_TO_REMOVE:
             if header in response.headers:

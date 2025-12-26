@@ -37,9 +37,10 @@ class GatewayRouteConfig:
         "entity-service": {
             "id": "entity-service",
             "uri": "lb://entity-service",
-            "predicates": ["/entity/**"],
+            "predicates": ["/entity/**", "/app/entitySitePortal/**"],
             "rewrites": {
                 "/entity/(?P<path>.*)": "/$path",
+                "/app/entitySitePortal/(?P<path>.*)": "/entitySitePortal/$path",
             },
             "remove_headers": ["Cookie", "Set-Cookie"],
         },

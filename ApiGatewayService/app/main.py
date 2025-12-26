@@ -136,6 +136,28 @@ def create_app() -> FastAPI:
     # Include gateway routing (primary purpose of the gateway)
     app.include_router(gateway_routes.router)
 
+    # Serve static Flutter app files
+    from fastapi.staticfiles import StaticFiles
+    import os
+    
+    static_paths = [
+        "/var/www/html",  # Production path
+        os.path.join(os.path.dirname(__file__), "..", "static"),  # Local development
+        os.path.join(os.path.dirname(__file__), "..", "dist"),  # Build output
+    ]
+    
+    static_dir = None
+    for path in static_paths:
+        if os.path.exists(path):
+            static_dir = path
+            logger.info(f"Serving static files from: {path}")
+            break
+    
+    if static_dir:
+        app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+    else:
+        logger.warning("No static files directory found. Frontend will not be served.")
+
     # Create minimal OpenAPI schema - gateway should be transparent
     app.openapi_schema = None
     app.openapi = lambda: None

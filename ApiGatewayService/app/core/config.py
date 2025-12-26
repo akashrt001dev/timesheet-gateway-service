@@ -12,14 +12,43 @@ from pydantic import Field, field_validator, ConfigDict
 
 class GatewayRouteConfig: 
     
-    """Gateway Route Configuration"""
+    """Gateway Route Configuration - Matches Spring Boot application.yml"""
+
+    # Open endpoints from Spring security.client.permit-all
+    OPEN_ENDPOINTS = {
+        "/login/**",
+        "/oauth2/**",
+        "/",
+        "/login-options",
+        "/me",
+        "/ui/**",
+        "/app/**",
+        "/v3/api-docs/**",
+        "/user-management-service/user/ssoid/**",
+        "/entity-service/entityID",
+        "/entity-service/entity/logo",
+        "/entity-service/entity/allEntity",
+    }
 
     ROUTES = {
+        "app": {
+            "id": "app",
+            "uri": "https://app.timesmartai.ca",
+            "predicates": ["/app/**"],
+            "rewrites": {},
+            "remove_headers": [],
+        },
+        "home": {
+            "id": "home",
+            "uri": "https://app.timesmartai.ca",
+            "predicates": ["/home/**"],
+            "rewrites": {},
+            "remove_headers": [],
+        },
         "user-management-service": {
             "id": "user-management-service",
             "uri": "lb://user-management-service",
             "predicates": [
-                "/user-management-service/**",
                 "/auth/**",
                 "/user/**",
                 "/roles/**"
@@ -36,13 +65,10 @@ class GatewayRouteConfig:
             "id": "contract-management-service",
             "uri": "lb://contract-management-service",
             "predicates": [
-                "/contract-managment-service/**",
-                "/contract-management-service/**",
                 "/contracts/**"
             ],
             "rewrites": {
-                "/contract-managment-service/(?<path>.*)": "/${path}",
-                "/contract-management-service/(?<path>.*)": "/${path}",
+
                 "/contracts/(?<path>.*)": "/${path}",
             },
             "remove_headers": ["Cookie", "Set-Cookie"],
@@ -51,14 +77,12 @@ class GatewayRouteConfig:
             "id": "entity-service",
             "uri": "lb://entity-service",
             "predicates": [
-                "/entity-service/**",
                 "/entity/**",
-                "/app/entitySitePortal/**"
+                "/entityID/**"
             ],
             "rewrites": {
-                "/entity-service/(?<path>.*)": "/${path}",
-                "/entity/(?<path>.*)": "/${path}",
-                "/app/entitySitePortal/(?<path>.*)": "/entitySitePortal/${path}",
+                "/entity/(?<path>.*)"  : "/${path}",
+                "/entityID/(?<path>.*)"  : "/${path}",
             },
             "remove_headers": ["Cookie", "Set-Cookie"],
         },
@@ -66,14 +90,24 @@ class GatewayRouteConfig:
             "id": "timesheet-management-service",
             "uri": "lb://timesheet-management-service",
             "predicates": [
-                "/timesheet-management-service/**",
                 "/timesheet/**",
                 "/activity/**"
             ],
             "rewrites": {
-                "/timesheet-management-service/(?<path>.*)": "/${path}",
+
                 "/timesheet/(?<path>.*)": "/${path}",
                 "/activity/(?<path>.*)": "/${path}",
+            },
+            "remove_headers": ["Cookie", "Set-Cookie"],
+        },
+        "notification-service": {
+            "id": "notification-service",
+            "uri": "lb://notification-service",
+            "predicates": [
+                "/emailtemplate/**"
+            ],
+            "rewrites": {
+                "/emailtemplate/(?<path>.*)": "/${path}",
             },
             "remove_headers": ["Cookie", "Set-Cookie"],
         },
@@ -102,6 +136,26 @@ class Settings(BaseSettings):
     )
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
 
+    # Keycloak Configuration - From Spring OAuth2 providers
+    keycloak_realms: List[str] = Field(
+        default=[
+            "smmc-uat-prod",
+            "timesmart-master-uat",
+            "tenethealth-uat-prod"
+        ],
+        alias="KEYCLOAK_REALMS"
+    )
+    keycloak_issuer_uris: List[str] = Field(
+        default=[
+            "https://idm.timesmart.io/realms/smmc-uat-prod",
+            "https://idm.timesmart.io/realms/timesmart-master-uat",
+            "https://idm.timesmart.io/realms/tenethealth-uat-prod"
+        ],
+        alias="KEYCLOAK_ISSUER_URIS"
+    )
+    keycloak_enabled: bool = Field(default=True, alias="KEYCLOAK_ENABLED")
+    master_entity_name: str = Field(default="timesmart-master-uat", alias="MASTER_ENTITY_NAME")
+
     # Eureka Configuration
     eureka_enabled: bool = Field(default=True, alias="EUREKA_ENABLED")
     eureka_server_url: str = Field(
@@ -121,6 +175,9 @@ class Settings(BaseSettings):
     )
     timesheet_service_url: Optional[str] = Field(
         default="http://localhost:8004", alias="TIMESHEET_SERVICE_URL"
+    )
+    notification_service_url: Optional[str] = Field(
+        default="http://localhost:8005", alias="NOTIFICATION_SERVICE_URL"
     )
 
     # Logging Configuration

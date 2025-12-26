@@ -11,25 +11,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/", tags=["Gateway"])
-async def root(request: Request):
-    """
-    Root path - indicates gateway is running
-    Redirect clients to appropriate backend services
-    """
-    return {
-        "message": "Gateway Service is running",
-        "status": "active",
-        "documentation": "See available routes below",
-        "routes": {
-            "/user-management-service/**": "User management, auth, roles",
-            "/contract-managment-service/**": "Contract management",
-            "/entity-service/**": "Entity service",
-            "/timesheet-management-service/**": "Timesheet and activity tracking",
-        },
-    }
-
-
 @router.api_route(
     "/{path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],

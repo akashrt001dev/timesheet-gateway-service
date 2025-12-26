@@ -10,7 +10,7 @@ from pydantic_settings import BaseSettings
 from pydantic import Field, field_validator, ConfigDict
 
 
-class GatewayRouteConfig:
+class GatewayRouteConfig: 
     """Gateway Route Configuration"""
 
     ROUTES = {

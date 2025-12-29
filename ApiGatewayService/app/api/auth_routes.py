@@ -19,32 +19,33 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 @router.get("/login", name="Keycloak Login")
 async def login():
     """
-    Redirect user to Keycloak login page.
-    
-    The user logs in at Keycloak and is redirected back to the application.
-    Backend services validate the JWT token.
+    Redirect user to Keycloak login page (OIDC Authorization Code Flow)
     """
     settings = get_settings()
-    
+
     if not settings.keycloak_enabled:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="OAuth2 is not enabled"
         )
-    
-    # Build Keycloak authorization URL
-    auth_endpoint = f"{settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/auth"
-    
+
+    auth_endpoint = (
+        f"{settings.keycloak_server_url}/realms/"
+        f"{settings.keycloak_realm}/protocol/openid-connect/auth"
+    )
+
     params = {
+        "response_type": "code",
         "client_id": settings.keycloak_client_id,
         "redirect_uri": settings.keycloak_redirect_uri,
-        "response_type": "code",
         "scope": "openid profile email offline_access roles",
+        # ❌ grant_type REMOVED (IMPORTANT)
     }
-    
+
     login_url = f"{auth_endpoint}?{urlencode(params)}"
-    logger.info(f"Redirecting to Keycloak login: {auth_endpoint}")
-    
+
+    logger.info(f"Redirecting to Keycloak login")
+
     return RedirectResponse(url=login_url, status_code=302)
 
 

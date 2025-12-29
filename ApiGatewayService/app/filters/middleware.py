@@ -38,6 +38,12 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             Response with populated user headers if authenticated
         """
         path = request.url.path
+        method = request.method
+
+        # Allow OPTIONS requests (CORS preflight)
+        if method == "OPTIONS":
+            logger.debug(f"CORS preflight request: {method} {path}")
+            return await call_next(request)
 
         # Check if route requires authentication
         if not RouterValidator.is_secured(path):

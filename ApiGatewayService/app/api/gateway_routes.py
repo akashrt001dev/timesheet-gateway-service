@@ -64,7 +64,6 @@ PUBLIC_ROUTES = {
     "/login",
     "/oauth2",
     "/",
-    "/home",
     "/app",
     "/docs",
     "/health",
@@ -97,6 +96,7 @@ class GatewayRouter:
         self.frontend_routes = {
             "/app": settings.react_uri,      # Spring: Path=/app/**
             "/home": settings.flutter_uri,   # Spring: Path=/home/**
+            # "/": settings.flutter_uri,   # Spring: Path=/home/**
         }
         
         # Backend service routes with path rewriting rules
@@ -287,6 +287,21 @@ async def proxy_request(
             if k.lower() not in HOP_BY_HOP_HEADERS
         }
         
+        # Add CORS headers to all proxied responses (required for cross-origin requests)
+        # This prevents ORB (Object Restriction Blocking) errors in the browser
+        settings = get_settings()
+        cors_origin = settings.cors_origins[0] if settings.cors_origins else "*"
+        
+        # Only add if not already present (upstream headers take precedence)
+        if "access-control-allow-origin" not in {k.lower() for k in response_headers.keys()}:
+            response_headers["Access-Control-Allow-Origin"] = cors_origin
+        if "access-control-allow-credentials" not in {k.lower() for k in response_headers.keys()}:
+            response_headers["Access-Control-Allow-Credentials"] = "true" if settings.cors_credentials else "false"
+        if "access-control-allow-methods" not in {k.lower() for k in response_headers.keys()}:
+            response_headers["Access-Control-Allow-Methods"] = ", ".join(settings.cors_methods)
+        if "access-control-allow-headers" not in {k.lower() for k in response_headers.keys()}:
+            response_headers["Access-Control-Allow-Headers"] = ", ".join(settings.cors_headers)
+        
         logger.debug(f"Upstream responded with {response.status_code}")
         return response.status_code, response_headers, response.content
     
@@ -376,7 +391,14 @@ async def _validate_token_if_required(request: Request, path: str) -> Optional[D
         )
         
         logger.info(f"Redirecting to Keycloak: {keycloak_auth_url}")
-        return RedirectResponse(url=keycloak_auth_url, status_code=302)
+        return RedirectResponse(
+            url=keycloak_auth_url, 
+            status_code=307,  # Use 307 for temporary redirect (preserves POST method)
+            headers={
+                "Cache-Control": "no-store, no-cache",
+                "Pragma": "no-cache",
+            }
+        )
     
     token = auth_header[7:]
     
@@ -471,7 +493,9 @@ async def gateway_route(request: Request, path: str = ""):
         if not route_info:
             # Handle root path redirect to Flutter home
             if full_path == "/":
-                logger.info("Redirecting / to /home")
+                # logger.info("Redirecting / to /home")
+                # return RedirectResponse(url="/home", status_code=307)
+                logger.info("Redirecting / to /")
                 return RedirectResponse(url="/home", status_code=307)
             
             logger.warning(f"No route found for {full_path}")

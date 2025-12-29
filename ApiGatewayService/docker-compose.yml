@@ -37,6 +37,8 @@ services:
       - microservices
     # depends_on:
     #   - discovery-service
+    volumes:
+      - .:/app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

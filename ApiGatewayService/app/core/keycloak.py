@@ -12,13 +12,13 @@ import json
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 from functools import lru_cache
+import base64
 
 import jwt
 import httpx
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-import base64
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class KeycloakTokenValidator:
                     return _jwks_cache[self.realm]
         
         try:
-            async with httpx.AsyncClient(verify=True) as client:
+            async with httpx.AsyncClient() as client:
                 response = await client.get(self.jwks_uri, timeout=10.0)
                 response.raise_for_status()
                 jwks = response.json()
@@ -60,14 +60,14 @@ class KeycloakTokenValidator:
                 _jwks_cache[self.realm] = jwks
                 _jwks_expiry[self.realm] = datetime.now() + timedelta(hours=1)
                 
-                logger.info(f"Fetched JWKS from {self.realm}")
+                logger.debug(f"Fetched JWKS from {self.realm}")
                 return jwks
         except Exception as e:
             logger.error(f"Failed to fetch JWKS from {self.issuer_uri}: {str(e)}")
             raise
     
     def _get_public_key(self, token: str, jwks: Dict[str, Any]) -> Optional[str]:
-        """Extract public key from JWKS for token and convert to PEM"""
+        """Extract public key from JWKS for token"""
         try:
             # Decode header without verification to get kid
             header = jwt.get_unverified_header(token)
@@ -90,7 +90,7 @@ class KeycloakTokenValidator:
             return None
     
     def _jwk_to_pem(self, jwk: Dict[str, Any]) -> str:
-        """Convert JWK (RSA) to PEM format"""
+        """Convert JWK (RSA) to PEM format using cryptography library"""
         try:
             # Extract components from JWK
             kty = jwk.get("kty")
@@ -104,7 +104,7 @@ class KeycloakTokenValidator:
                     data += "=" * padding
                 return base64.urlsafe_b64decode(data)
             
-            # Extract RSA components
+            # Extract RSA components from JWK
             n = int.from_bytes(b64decode(jwk["n"]), byteorder='big')
             e = int.from_bytes(b64decode(jwk["e"]), byteorder='big')
             
@@ -183,7 +183,7 @@ class KeycloakConfig:
     """Multi-realm Keycloak configuration"""
     
     REALMS = {
-        "smmc-uat-prod": "https://idm.timesmart.io/realms/smmc-uat-prod",
+        "smmc-prod-replica": "https://idm.timesmart.io/realms/smmc-prod-replica",
         "timesmart-master-uat": "https://idm.timesmart.io/realms/timesmart-master-uat",
         "tenethealth-uat-prod": "https://idm.timesmart.io/realms/tenethealth-uat-prod",
     }

@@ -1,6 +1,20 @@
 """
-FastAPI Main Application
-Gateway Service Entry Point
+FastAPI API Gateway - Production-Ready Reverse Proxy
+Main application entry point for the API Gateway service.
+
+This gateway acts as a reverse proxy for multiple backend services,
+routing requests based on path prefixes and forwarding all HTTP methods.
+Frontend is served from an external source.
+
+Features:
+- Multi-service routing with path-based forwarding
+- All HTTP methods (GET, POST, PUT, PATCH, DELETE, OPTIONS)
+- Request/response header forwarding
+- Query parameter preservation
+- Request body forwarding
+- Redirect following
+- Comprehensive error handling
+- Health check endpoint
 """
 import logging
 from contextlib import asynccontextmanager
@@ -59,17 +73,20 @@ def create_app() -> FastAPI:
 
     # Create application
     app = FastAPI(
-        title="Gateway REST API",
-        description="Gateway API REST calls using FastAPI",
-        version="1.0",
+        title="API Gateway",
+        description="Reverse proxy gateway for backend services",
+        version="1.0.0",
         lifespan=lifespan,
+        docs_url=None,  # Disable Swagger UI for production
+        redoc_url=None,  # Disable ReDoc for production
+        openapi_url=None,  # Disable OpenAPI schema for production
     )
 
     # Configure logging
     configure_logging(settings.log_level)
 
-    # Add middleware (order matters - first added = last executed)
-    # 1. CORS middleware
+    # Add middleware (order matters - first added = last executed in request flow)
+    # 1. CORS middleware - handle cross-origin requests
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -78,16 +95,16 @@ def create_app() -> FastAPI:
         allow_headers=settings.cors_headers,
     )
 
-    # 2. Header removal middleware
+    # 2. Header removal middleware - remove sensitive headers
     app.add_middleware(HeaderRemovalMiddleware)
 
-    # 3. Request logging middleware
+    # 3. Request logging middleware - log all requests
     app.add_middleware(RequestLoggingMiddleware)
 
-    # 4. Correlation ID middleware
+    # 4. Correlation ID middleware - add request correlation IDs
     app.add_middleware(CorrelationIDMiddleware)
 
-    # 5. Authentication middleware
+    # 5. Authentication middleware - validate JWT tokens
     app.add_middleware(AuthenticationMiddleware)
 
     # Exception handlers
@@ -123,49 +140,23 @@ def create_app() -> FastAPI:
             },
         )
 
-    # Health/Status endpoint - required for monitoring and k8s probes
+    # Health check endpoint (required for monitoring and Kubernetes probes)
     @app.get("/health", tags=["Gateway"])
-    async def health():
+    async def health_check():
         """Gateway health check endpoint"""
         return {
             "status": "healthy",
             "service": settings.app_name,
-            "version": "1.0",
+            "version": "1.0.0",
         }
 
-    # Include gateway routing (primary purpose of the gateway)
+    # Include gateway routing (core purpose of this gateway)
     app.include_router(gateway_routes.router)
-
-    # Serve static Flutter app files
-    from fastapi.staticfiles import StaticFiles
-    import os
-    
-    static_paths = [
-        "/var/www/html",  # Production path
-        os.path.join(os.path.dirname(__file__), "..", "static"),  # Local development
-        os.path.join(os.path.dirname(__file__), "..", "dist"),  # Build output
-    ]
-    
-    static_dir = None
-    for path in static_paths:
-        if os.path.exists(path):
-            static_dir = path
-            logger.info(f"Serving static files from: {path}")
-            break
-    
-    if static_dir:
-        app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
-    else:
-        logger.warning("No static files directory found. Frontend will not be served.")
-
-    # Create minimal OpenAPI schema - gateway should be transparent
-    app.openapi_schema = None
-    app.openapi = lambda: None
 
     app_instance = app
     logger.info(f"Application created: {settings.app_name}")
     logger.info(f"Listening on {settings.server_host}:{settings.server_port}")
-    logger.info("Gateway is ready to route requests to backend services")
+    logger.info("Gateway routes initialized - ready to proxy requests")
 
     return app
 
@@ -176,7 +167,7 @@ app = create_app()
 
 def main():
     """
-    Main entry point
+    Main entry point for the FastAPI application
     """
     settings = get_settings()
 

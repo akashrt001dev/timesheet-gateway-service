@@ -127,6 +127,18 @@ class Settings(BaseSettings):
     request_timeout_seconds: int = Field(default=30, alias="REQUEST_TIMEOUT_SECONDS")
 
     # ========================================================================
+    # KEYCLOAK/OAUTH2 CONFIGURATION
+    # ========================================================================
+    keycloak_enabled: bool = Field(default=True, alias="KEYCLOAK_ENABLED")
+    keycloak_server_url: str = Field(default="https://idm.timesmart.io", alias="KEYCLOAK_SERVER_URL")
+    keycloak_realm: str = Field(default="smmc-uat-prod", alias="KEYCLOAK_REALM")
+    keycloak_client_id: str = Field(default="spring-addons-confidential", alias="KEYCLOAK_CLIENT_ID")
+    keycloak_client_secret: str = Field(default="", alias="KEYCLOAK_CLIENT_SECRET")
+    keycloak_redirect_uri: str = Field(default="https://localhost/auth/callback", alias="KEYCLOAK_REDIRECT_URI")
+    post_login_redirect_path: str = Field(default="/home/", alias="POST_LOGIN_REDIRECT_PATH")
+    post_logout_redirect_path: str = Field(default="/home", alias="POST_LOGOUT_REDIRECT_PATH")
+
+    # ========================================================================
     # VALIDATORS
     # ========================================================================
     @field_validator("cors_origins", mode="before")

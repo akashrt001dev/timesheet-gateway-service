@@ -28,6 +28,7 @@ import uvicorn
 
 from app.core.config import get_settings, configure_logging
 from app.api import gateway_routes
+from app.api import auth_routes
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,10 @@ async def lifespan(app: FastAPI):
     logger.info(f"Environment: {settings.environment}")
     logger.info(f"React URI: {settings.react_uri}")
     logger.info(f"Flutter URI: {settings.flutter_uri}")
+    
+    if settings.keycloak_enabled:
+        logger.info(f"Keycloak Login: {settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/auth")
+        logger.info(f"Keycloak Realm: {settings.keycloak_realm}")
     
     yield
     
@@ -133,6 +138,11 @@ def create_app() -> FastAPI:
     
     # Include gateway routing (core purpose of this gateway)
     app.include_router(gateway_routes.router)
+    
+    # Include authentication routes (Keycloak redirects)
+    if settings.keycloak_enabled:
+        app.include_router(auth_routes.router)
+        logger.info("Authentication routes registered (/auth/login, /auth/logout)")
     
     app_instance = app
     logger.info(f"Application created: {settings.app_name}")

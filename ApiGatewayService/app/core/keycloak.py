@@ -183,6 +183,7 @@ class KeycloakConfig:
     """Multi-realm Keycloak configuration"""
     
     REALMS = {
+        "smmc-io-prod": "https://idm.timesmart.io/realms/smmc-io-prod",
         "smmc-uat-prod": "https://idm.timesmart.io/realms/smmc-uat-prod",
         "timesmart-master-uat": "https://idm.timesmart.io/realms/timesmart-master-uat",
         "tenethealth-uat-prod": "https://idm.timesmart.io/realms/tenethealth-uat-prod",

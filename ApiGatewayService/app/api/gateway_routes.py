@@ -440,6 +440,20 @@ async def gateway_route(request: Request, path: str = ""):
     # Normalize path
     full_path = f"/{path}" if path else "/"
     
+    # Handle CORS preflight requests (OPTIONS) - bypass authentication
+    if request.method == "OPTIONS":
+        logger.debug(f"CORS preflight request: {full_path}")
+        return StreamingResponse(
+            content=iter([]),
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, Origin",
+                "Access-Control-Max-Age": "3600",
+            },
+        )
+    
     try:
         # Validate token for protected routes (may redirect to Keycloak login)
         auth_result = await _validate_token_if_required(request, full_path)

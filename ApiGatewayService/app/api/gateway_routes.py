@@ -37,7 +37,7 @@ from urllib.parse import urljoin
 
 import httpx
 from fastapi import APIRouter, Request, HTTPException, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, RedirectResponse
 
 from app.core.config import get_settings
 from app.core.keycloak import KeycloakConfig, extract_roles, get_username
@@ -332,8 +332,12 @@ async def _validate_token_if_required(request: Request, path: str) -> Optional[D
         User claims dict if authenticated, None if public route
         
     Raises:
-        HTTPException 401 if token is invalid/missing on protected route
+        HTTPException with redirect to Keycloak login if token is missing on protected route
+        HTTPException 401 if token is invalid
     """
+    from urllib.parse import urlencode
+    import secrets
+    
     settings = get_settings()
     
     # Public routes don't need auth
@@ -348,12 +352,31 @@ async def _validate_token_if_required(request: Request, path: str) -> Optional[D
     # Extract token from Authorization header
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
-        logger.warning(f"Missing authorization token for {path}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization header required",
-            headers={"WWW-Authenticate": "Bearer"},
+        logger.warning(f"Missing authorization token for {path}, redirecting to Keycloak login")
+        
+        # Redirect to Keycloak login
+        keycloak_server = settings.keycloak_server_url.rstrip("/")
+        realm = settings.keycloak_realm
+        client_id = settings.keycloak_client_id
+        redirect_uri = settings.keycloak_redirect_uri
+        
+        # Build authorization request parameters
+        auth_params = {
+            "response_type": "code",
+            "client_id": client_id,
+            "scope": "openid profile email offline_access roles",
+            "redirect_uri": redirect_uri,
+            "state": secrets.token_urlsafe(32),
+            "nonce": secrets.token_urlsafe(32),
+        }
+        
+        keycloak_auth_url = (
+            f"{keycloak_server}/realms/{realm}/protocol/openid-connect/auth"
+            f"?{urlencode(auth_params)}"
         )
+        
+        logger.info(f"Redirecting to Keycloak: {keycloak_auth_url}")
+        return RedirectResponse(url=keycloak_auth_url, status_code=302)
     
     token = auth_header[7:]
     
@@ -418,8 +441,14 @@ async def gateway_route(request: Request, path: str = ""):
     full_path = f"/{path}" if path else "/"
     
     try:
-        # Validate token for protected routes
-        user = await _validate_token_if_required(request, full_path)
+        # Validate token for protected routes (may redirect to Keycloak login)
+        auth_result = await _validate_token_if_required(request, full_path)
+        
+        # If redirect response (RedirectResponse), return it
+        if isinstance(auth_result, RedirectResponse):
+            return auth_result
+        
+        user = auth_result
         
         # Determine routing
         router_instance = GatewayRouter(get_settings())
@@ -428,7 +457,6 @@ async def gateway_route(request: Request, path: str = ""):
         if not route_info:
             # Handle root path redirect to Flutter home
             if full_path == "/":
-                from fastapi.responses import RedirectResponse
                 logger.info("Redirecting / to /home")
                 return RedirectResponse(url="/home", status_code=307)
             

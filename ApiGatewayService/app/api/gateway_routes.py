@@ -339,6 +339,34 @@ async def gateway_route(request: Request, path: str = ""):
     full_path = f"/{path}" if path else "/"
     
     try:
+        # Handle Keycloak login/logout redirects (before routing to services)
+        settings = get_settings()
+        if settings.keycloak_enabled:
+            if full_path == "/auth/login" or full_path.startswith("/auth/login?"):
+                from urllib.parse import urlencode
+                from fastapi.responses import RedirectResponse
+                
+                auth_endpoint = f"{settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/auth"
+                params = {
+                    "client_id": settings.keycloak_client_id,
+                    "redirect_uri": settings.keycloak_redirect_uri,
+                    "response_type": "code",
+                    "scope": "openid profile email offline_access roles",
+                }
+                login_url = f"{auth_endpoint}?{urlencode(params)}"
+                logger.info(f"Redirecting to Keycloak login: {auth_endpoint}")
+                return RedirectResponse(url=login_url, status_code=302)
+            
+            if full_path == "/auth/logout" or full_path.startswith("/auth/logout?"):
+                from urllib.parse import urlencode
+                from fastapi.responses import RedirectResponse
+                
+                logout_endpoint = f"{settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/logout"
+                params = {"redirect_uri": settings.post_logout_redirect_path}
+                logout_url = f"{logout_endpoint}?{urlencode(params)}"
+                logger.info(f"Redirecting to Keycloak logout: {logout_endpoint}")
+                return RedirectResponse(url=logout_url, status_code=302)
+        
         # Determine routing
         router_instance = GatewayRouter(get_settings())
         route_info = router_instance.determine_route(full_path)

@@ -6,26 +6,39 @@ services:
     container_name: api-gateway-service
     ports:
       - "${SERVER_PORT:-8000}:8000"
+    env_file:
+      - .env
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-local}
       - SERVER_PORT=8000
       - SERVER_HOST=0.0.0.0
       - JWT_SECRET=${JWT_SECRET}
-      - USER_SERVICE_URL=${USER_SERVICE_URL:-http://host.docker.internal:8001}
-      - CONTRACT_SERVICE_URL=${CONTRACT_SERVICE_URL:-http://host.docker.internal:8002}
+      - JWT_ALGORITHM=${JWT_ALGORITHM}
+      - USER_MANAGEMENT_SERVICE_URL=${USER_MANAGEMENT_SERVICE_URL:-http://host.docker.internal:8001}
+      - CONTRACT_MANAGEMENT_SERVICE_URL=${CONTRACT_MANAGEMENT_SERVICE_URL:-http://host.docker.internal:8002}
       - ENTITY_SERVICE_URL=${ENTITY_SERVICE_URL:-http://host.docker.internal:8003}
-      - TIMESHEET_SERVICE_URL=${TIMESHEET_SERVICE_URL:-http://host.docker.internal:8004}
+      - TIMESHEET_MANAGEMENT_SERVICE_URL=${TIMESHEET_MANAGEMENT_SERVICE_URL:-http://host.docker.internal:8004}
+      - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL:-http://host.docker.internal:8005}
+      - REACT_URI=${REACT_URI}
+      - FLUTTER_URI=${FLUTTER_URI}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - EUREKA_ENABLED=${EUREKA_ENABLED:-true}
       - EUREKA_SERVER_URL=${EUREKA_SERVER_URL:-http://discovery-service:8761/eureka/}
-    volumes:
-      - /var/www/html:/var/www/html:ro
+      - EUREKA_APP_NAME=${EUREKA_APP_NAME}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - CORS_CREDENTIALS=${CORS_CREDENTIALS}
+      - CORS_METHODS=${CORS_METHODS}
+      - CORS_HEADERS=${CORS_HEADERS}
+      - ACTUATOR_ENABLED=${ACTUATOR_ENABLED:-true}
+      - REQUEST_TIMEOUT_SECONDS=${REQUEST_TIMEOUT_SECONDS:-30}
+      - ZIPKIN_ENABLED=${ZIPKIN_ENABLED:-false}
+      - ZIPKIN_URL=${ZIPKIN_URL}
     networks:
       - microservices
     # depends_on:
     #   - discovery-service
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3

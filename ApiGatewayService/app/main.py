@@ -1,92 +1,88 @@
 """
-FastAPI API Gateway - Production-Ready Reverse Proxy
-Main application entry point for the API Gateway service.
+FastAPI API Gateway - Spring Cloud Gateway Equivalent
 
-This gateway acts as a reverse proxy for multiple backend services,
-routing requests based on path prefixes and forwarding all HTTP methods.
-Frontend is served from an external source.
+Production-ready reverse proxy gateway for backend services.
+Implements the routing, rewriting, and security behavior from 
+Java Spring Cloud Gateway application.yml.
 
-Features:
-- Multi-service routing with path-based forwarding
-- All HTTP methods (GET, POST, PUT, PATCH, DELETE, OPTIONS)
-- Request/response header forwarding
-- Query parameter preservation
-- Request body forwarding
-- Redirect following
-- Comprehensive error handling
-- Health check endpoint
+KEY FEATURES:
+- Frontend routing to React/Flutter UIs (no token validation)
+- Backend service routing with automatic path rewriting
+- TokenRelay: Forward all headers including Authorization
+- No gateway-level token validation (backend services handle it)
+- All HTTP methods supported
+- Proper CORS handling
+- Request correlation IDs for tracing
+
+RUNS WITH ONE COMMAND:
+    uvicorn app.main:app --host 0.0.0.0 --port 8000
 """
 import logging
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, status, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.openapi.utils import get_openapi
 import uvicorn
 
 from app.core.config import get_settings, configure_logging
-from app.core.logging import setup_logging
-from app.filters.middleware import (
-    AuthenticationMiddleware,
-    CorrelationIDMiddleware,
-    RequestLoggingMiddleware,
-    CORSMiddleware as CustomCORSMiddleware,
-    HeaderRemovalMiddleware,
-)
 from app.api import gateway_routes
 
 logger = logging.getLogger(__name__)
 
-# Global application instance
+# Global app instance
 app_instance: Optional[FastAPI] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Application lifespan manager
-    Handles startup and shutdown events
+    Application lifespan manager.
+    Handles startup and shutdown events.
     """
     # Startup
     settings = get_settings()
-    setup_logging(log_level=settings.log_level)
-    logger.info(f"Starting {settings.app_name} on {settings.server_host}:{settings.server_port}")
-
+    configure_logging(settings.log_level)
+    logger.info(
+        f"Starting {settings.app_name} on {settings.server_host}:{settings.server_port}"
+    )
+    logger.info(f"Environment: {settings.environment}")
+    logger.info(f"React URI: {settings.react_uri}")
+    logger.info(f"Flutter URI: {settings.flutter_uri}")
+    
     yield
-
+    
     # Shutdown
     logger.info(f"Shutting down {settings.app_name}")
 
 
 def create_app() -> FastAPI:
     """
-    Create and configure FastAPI application
-
+    Create and configure FastAPI application.
+    
     Returns:
         Configured FastAPI application instance
     """
     global app_instance
-
+    
     settings = get_settings()
-
+    
     # Create application
     app = FastAPI(
         title="API Gateway",
-        description="Reverse proxy gateway for backend services",
+        description="Spring Cloud Gateway equivalent - reverse proxy for backend services",
         version="1.0.0",
         lifespan=lifespan,
-        docs_url=None,  # Disable Swagger UI for production
-        redoc_url=None,  # Disable ReDoc for production
-        openapi_url=None,  # Disable OpenAPI schema for production
+        docs_url=None,      # Disable Swagger UI in production
+        redoc_url=None,     # Disable ReDoc in production
+        openapi_url=None,   # Disable OpenAPI schema in production
     )
-
+    
     # Configure logging
     configure_logging(settings.log_level)
-
-    # Add middleware (order matters - first added = last executed in request flow)
-    # 1. CORS middleware - handle cross-origin requests
+    
+    # Add CORS middleware (must be before other middleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -94,52 +90,37 @@ def create_app() -> FastAPI:
         allow_methods=settings.cors_methods,
         allow_headers=settings.cors_headers,
     )
-
-    # 2. Header removal middleware - remove sensitive headers
-    app.add_middleware(HeaderRemovalMiddleware)
-
-    # 3. Request logging middleware - log all requests
-    app.add_middleware(RequestLoggingMiddleware)
-
-    # 4. Correlation ID middleware - add request correlation IDs
-    app.add_middleware(CorrelationIDMiddleware)
-
-    # 5. Authentication middleware - validate JWT tokens
-    app.add_middleware(AuthenticationMiddleware)
-
+    
     # Exception handlers
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException):
         """Handle HTTP exceptions"""
         logger.error(
-            f"HTTP Exception: {exc.status_code} - {exc.detail}",
-            extra={"correlation_id": request.scope.get("correlation_id", "N/A")},
+            f"HTTP {exc.status_code}: {exc.detail}",
+            extra={"path": request.url.path}
         )
         return JSONResponse(
             status_code=exc.status_code,
             content={
-                "detail": exc.detail,
+                "error": exc.detail,
                 "status_code": exc.status_code,
-                "correlation_id": request.scope.get("correlation_id", "N/A"),
+                "path": request.url.path,
             },
         )
-
+    
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):
-        """Handle general exceptions"""
-        logger.exception(
-            f"Unhandled exception: {str(exc)}",
-            extra={"correlation_id": request.scope.get("correlation_id", "N/A")},
-        )
+        """Handle unhandled exceptions"""
+        logger.exception(f"Unhandled exception: {str(exc)}")
         return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             content={
-                "detail": "Internal server error",
-                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-                "correlation_id": request.scope.get("correlation_id", "N/A"),
+                "error": "Internal server error",
+                "status_code": 500,
+                "path": request.url.path,
             },
         )
-
+    
     # Health check endpoint (required for monitoring and Kubernetes probes)
     @app.get("/health", tags=["Gateway"])
     async def health_check():
@@ -149,15 +130,14 @@ def create_app() -> FastAPI:
             "service": settings.app_name,
             "version": "1.0.0",
         }
-
+    
     # Include gateway routing (core purpose of this gateway)
     app.include_router(gateway_routes.router)
-
+    
     app_instance = app
     logger.info(f"Application created: {settings.app_name}")
-    logger.info(f"Listening on {settings.server_host}:{settings.server_port}")
-    logger.info("Gateway routes initialized - ready to proxy requests")
-
+    logger.info(f"Gateway routes initialized")
+    
     return app
 
 
@@ -167,10 +147,13 @@ app = create_app()
 
 def main():
     """
-    Main entry point for the FastAPI application
+    Main entry point for the FastAPI application.
+    
+    Starts the Uvicorn server with configured host and port.
+    To run: uvicorn app.main:app --host 0.0.0.0 --port 8000
     """
     settings = get_settings()
-
+    
     uvicorn.run(
         "app.main:app",
         host=settings.server_host,

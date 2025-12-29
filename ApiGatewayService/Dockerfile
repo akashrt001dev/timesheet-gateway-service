@@ -1,5 +1,5 @@
 # Dockerfile for FastAPI Gateway Service
-FROM python:3.11-slim
+FROM python:3.11-slim as builder
 
 # Set working directory
 WORKDIR /app
@@ -12,8 +12,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements file
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies in user directory
+RUN pip install --user --no-cache-dir -r requirements.txt
+
+# Final stage
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install curl for health checks
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy installed packages from builder
+COPY --from=builder /root/.local /home/appuser/.local
 
 # Copy application code
 COPY . .
@@ -21,6 +34,9 @@ COPY . .
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
+
+# Set PATH to include user's local bin
+ENV PATH=/home/appuser/.local/bin:$PATH
 
 # Expose port
 EXPOSE 8000

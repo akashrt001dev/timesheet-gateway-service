@@ -1,29 +1,57 @@
 """
-Gateway Router Module - Comprehensive Reverse Proxy Implementation
+FastAPI Gateway Router - Spring Cloud Gateway Equivalent
 
-This module defines all gateway routes and integrates intelligent routing logic.
-Routes requests to appropriate upstream services based on path prefixes.
+This module implements routing and proxying matching the Java Spring Cloud Gateway
+configuration from application.yml:
 
-Routing configuration:
-- "/" and frontend paths → https://smmc-io-prod.timesmart.io
-- "/user-management-service/**" → http://localhost:8001
-- "/contract-managment-service/**" → http://localhost:8002
-- "/entity-service/**" → http://localhost:8003
-- "/timesheet-management-service/**" → http://localhost:8004
+FRONTEND ROUTING:
+  /app/**  → react-uri
+  /home/** → flutter-uri
 
-All HTTP methods are supported: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD
+BACKEND SERVICE ROUTING WITH PATH REWRITING:
+  /auth/**, /user/**, /roles/** 
+    → user-management-service
+    → strip prefix before forwarding
+
+  /contracts/**
+    → contract-management-service  
+    → strip "/contracts"
+
+  /entity/**, /entityID/**
+    → entity-service
+    → strip "/entity"
+
+  /timesheet/**, /activity/**
+    → timesheet-management-service
+    → strip corresponding prefix
+
+  /emailtemplate/**
+    → notification-service
+    → strip "/emailtemplate"
+
+SECURITY:
+  - NO token validation in gateway
+  - Forward Authorization header as-is (TokenRelay)
+  - All headers forwarded to backend services
+  - Backend services handle authentication/authorization
+
+All HTTP methods supported: GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD
 """
 import logging
+import re
 from typing import Dict, Optional, Tuple
-from fastapi import APIRouter, Request, HTTPException, status
-from fastapi.responses import StreamingResponse, RedirectResponse
+from urllib.parse import urljoin
+
 import httpx
-from urllib.parse import urlparse, urljoin, quote
+from fastapi import APIRouter, Request, HTTPException, status
+from fastapi.responses import StreamingResponse
+
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# HTTP client configuration
+# HTTP client configuration for proxying
 HTTPX_TIMEOUT = 30.0
 HTTPX_CLIENT_CONFIG = {
     "timeout": HTTPX_TIMEOUT,
@@ -31,249 +59,222 @@ HTTPX_CLIENT_CONFIG = {
     "limits": httpx.Limits(max_keepalive_connections=100, max_connections=100),
 }
 
-# Frontend configuration
-FRONTEND_URL = "https://smmc-io-prod.timesmart.io"
-
-# Static file extensions that bypass backend proxying
-STATIC_EXTENSIONS = {
-    '.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico',
-    '.woff', '.woff2', '.ttf', '.eot', '.map', '.json', '.html',
-    '.wav', '.mp3', '.mp4', '.webm', '.pdf', '.doc', '.docx'
-}
-
-# Upstream service mappings
-UPSTREAM_SERVICES: Dict[str, str] = {
-    "user-management-service": "http://localhost:8001",
-    "contract-managment-service": "http://localhost:8002",
-    "contract-management-service": "http://localhost:8002",
-    "entity-service": "http://localhost:8003",
-    "timesheet-management-service": "http://localhost:8004",
-}
-
-# Route predicates mapping path prefixes to service identifiers
-# Includes both direct paths and /api/ prefixed paths (from nginx)
-ROUTE_PREDICATES: Dict[str, str] = {
-    # Direct paths
-    "/user-management-service": "user-management-service",
-    "/auth": "user-management-service",
-    "/user": "user-management-service",
-    "/roles": "user-management-service",
-    "/contract-managment-service": "contract-managment-service",
-    "/contract-management-service": "contract-management-service",
-    "/contracts": "contract-managment-service",
-    "/entity-service": "entity-service",
-    "/entity": "entity-service",
-    "/app/entitySitePortal": "entity-service",
-    "/timesheet-management-service": "timesheet-management-service",
-    "/timesheet": "timesheet-management-service",
-    "/activity": "timesheet-management-service",
-    # Nginx /api/ prefixed paths
-    "/api/user-management-service": "user-management-service",
-    "/api/contract-managment-service": "contract-managment-service",
-    "/api/contract-management-service": "contract-management-service",
-    "/api/entity-service": "entity-service",
-    "/api/timesheet-management-service": "timesheet-management-service",
+# Hop-by-hop headers that should not be forwarded
+HOP_BY_HOP_HEADERS = {
+    "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+    "te", "trailers", "transfer-encoding", "upgrade", "host",
 }
 
 
-def is_static_file(path: str) -> bool:
+class GatewayRouter:
     """
-    Check if a path represents a static file based on extension.
+    Routes requests to appropriate backends with Spring Cloud Gateway equivalent behavior.
     
-    Args:
-        path: Request path
-        
-    Returns:
-        True if path has a static file extension
+    Implements exact routing and path rewriting logic from Java Gateway application.yml.
     """
-    return any(path.lower().endswith(ext) for ext in STATIC_EXTENSIONS)
 
-
-def determine_target_service(path: str) -> Tuple[str, str]:
-    """
-    Determine the target upstream service and base URL for a given path.
-    
-    Uses a priority-based matching system:
-    1. Root path "/" → always frontend
-    2. Exact prefix matching from ROUTE_PREDICATES (longest first)
-    3. All unmatched paths → frontend
-    
-    Args:
-        path: Request path (e.g., "/user-management-service/api/users")
+    def __init__(self, settings):
+        """
+        Initialize gateway router with service URLs from settings.
         
-    Returns:
-        Tuple of (service_identifier, service_url) - NEVER returns None
-    """
-    # Root path ALWAYS goes to frontend
-    if path == "/":
-        return "frontend", FRONTEND_URL
-    
-    # Check each route predicate in priority order
-    # Sort by length descending to match longest prefix first
-    sorted_predicates = sorted(
-        ROUTE_PREDICATES.items(),
-        key=lambda x: len(x[0]),
-        reverse=True
-    )
-    
-    for prefix, service_id in sorted_predicates:
-        if path.startswith(prefix):
-            service_url = UPSTREAM_SERVICES.get(service_id)
-            if service_url:
-                return service_id, service_url
-    
-    # All unmatched paths → frontend
-    return "frontend", FRONTEND_URL
-
-
-def rewrite_path_for_upstream(path: str, service_id: str) -> str:
-    """
-    Rewrite the path for upstream service forwarding.
-    
-    Removes the service prefix from the path so the upstream service
-    receives the correct resource path.
-    
-    Examples:
-        /user-management-service/api/users → /api/users
-        /auth/login → /login
-        /contract-managment-service/v1/contracts → /v1/contracts
+        Args:
+            settings: Application settings with service URLs
+        """
+        self.settings = settings
         
-    Args:
-        path: Original request path
-        service_id: Target service identifier
+        # Frontend routes - no path rewriting
+        # Spring: uri: ${react-uri}, uri: ${flutter-uri}
+        self.frontend_routes = {
+            "/app": settings.react_uri,      # Spring: Path=/app/**
+            "/home": settings.flutter_uri,   # Spring: Path=/home/**
+        }
         
-    Returns:
-        Rewritten path for upstream service
-    """
-    # Find the longest matching prefix to remove
-    sorted_predicates = sorted(
-        [(k, v) for k, v in ROUTE_PREDICATES.items() if v == service_id],
-        key=lambda x: len(x[0]),
-        reverse=True
-    )
-    
-    for prefix, _ in sorted_predicates:
-        if path.startswith(prefix):
-            # Remove prefix and ensure path starts with /
-            rewritten = path[len(prefix):]
-            if not rewritten:
-                return "/"
-            if not rewritten.startswith("/"):
-                rewritten = "/" + rewritten
-            return rewritten
-    
-    # Fallback: return original path
-    return path
+        # Backend service routes with path rewriting rules
+        # Each entry maps a URL prefix to (service_url, prefix_to_strip)
+        # 
+        # Spring RewritePath behavior:
+        #   /auth/(?<path>.*)  → /${path}   (strip /auth)
+        #   /user/(?<path>.*)  → /${path}   (strip /user)
+        #   /roles/(?<path>.*) → /${path}   (strip /roles)
+        self.backend_routes = {
+            "/auth": (
+                settings.user_management_service_url,
+                "/auth"
+            ),
+            "/user": (
+                settings.user_management_service_url,
+                "/user"
+            ),
+            "/roles": (
+                settings.user_management_service_url,
+                "/roles"
+            ),
+            "/contracts": (
+                settings.contract_management_service_url,
+                "/contracts"
+            ),
+            "/entity": (
+                settings.entity_service_url,
+                "/entity"
+            ),
+            "/entityID": (
+                settings.entity_service_url,
+                "/entityID"
+            ),
+            "/timesheet": (
+                settings.timesheet_management_service_url,
+                "/timesheet"
+            ),
+            "/activity": (
+                settings.timesheet_management_service_url,
+                "/activity"
+            ),
+            "/emailtemplate": (
+                settings.notification_service_url,
+                "/emailtemplate"
+            ),
+        }
+
+    def determine_route(self, path: str) -> Optional[Tuple[str, str]]:
+        """
+        Determine target URL and rewritten path for a given request path.
+        
+        Implements Spring Cloud Gateway predicate matching and RewritePath filters.
+        
+        Example transformations:
+          /app/dashboard           → (react-uri, /app/dashboard)          [frontend, no rewrite]
+          /auth/login              → (user-service, /login)                [rewritten]
+          /contracts/123/download  → (contract-service, /123/download)    [rewritten]
+          
+        Args:
+            path: Request path from incoming HTTP request
+            
+        Returns:
+            Tuple of (target_url, rewritten_path) or None if no match
+        """
+        # Check frontend routes first (longer prefixes first)
+        for prefix in sorted(self.frontend_routes.keys(), key=len, reverse=True):
+            if path.startswith(prefix):
+                target_url = self.frontend_routes[prefix]
+                # Frontend: keep original path
+                return target_url, path
+        
+        # Check backend routes (longer prefixes first to match most specific)
+        for prefix in sorted(self.backend_routes.keys(), key=len, reverse=True):
+            if path.startswith(prefix):
+                service_url, strip_prefix = self.backend_routes[prefix]
+                
+                # Rewrite path: remove the prefix
+                # Examples:
+                #   /auth/login with /auth → /login
+                #   /contracts/123 with /contracts → /123
+                if path == prefix:
+                    # Exact match: path becomes /
+                    rewritten = "/"
+                else:
+                    # Remove prefix from path
+                    rewritten = path[len(strip_prefix):]
+                    # Ensure it starts with /
+                    if not rewritten.startswith("/"):
+                        rewritten = "/" + rewritten
+                
+                return service_url, rewritten
+        
+        # No matching route found
+        return None
 
 
 async def proxy_request(
-    request: Request,
-    upstream_url: str,
+    target_url: str,
     upstream_path: str,
-    timeout: float = HTTPX_TIMEOUT
+    request: Request,
+    timeout: float = HTTPX_TIMEOUT,
 ) -> Tuple[int, Dict[str, str], bytes]:
     """
-    Forward an HTTP request to an upstream service.
+    Proxy an HTTP request to a target upstream service.
     
-    This is the core proxy helper function that handles:
-    - All HTTP methods (GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD)
-    - Header forwarding (excluding hop-by-hop headers)
-    - Query parameter preservation
+    This function handles:
+    - All HTTP methods (GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD)
+    - Query parameters preservation
     - Request body forwarding
-    - Response handling with proper headers
+    - Header forwarding (excluding hop-by-hop headers)
+    - Authorization header relay (TokenRelay)
+    - Response handling
     
     Args:
+        target_url: Base URL of target service (e.g., "http://localhost:8001")
+        upstream_path: Path to forward (e.g., "/login")
         request: Incoming FastAPI request
-        upstream_url: Base URL of upstream service (e.g., "http://localhost:8001")
-        upstream_path: Path to forward (e.g., "/api/users")
         timeout: Request timeout in seconds
         
     Returns:
         Tuple of (status_code, headers_dict, response_body)
         
     Raises:
-        HTTPException: If the request cannot be forwarded
+        HTTPException: On connection, timeout, or other proxying errors
     """
-    # Build full upstream URL with query parameters
-    target_url = urljoin(upstream_url, upstream_path)
+    # Build full target URL
+    full_target_url = urljoin(target_url, upstream_path)
     if request.url.query:
-        target_url = f"{target_url}?{request.url.query}"
+        full_target_url = f"{full_target_url}?{request.url.query}"
     
-    # Prepare headers for forwarding
-    # Exclude hop-by-hop and host headers
-    hop_by_hop_headers = {
-        "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
-        "te", "trailers", "transfer-encoding", "upgrade", "host"
-    }
-    
+    # Prepare headers: forward all except hop-by-hop headers
+    # This implements TokenRelay - Authorization header is forwarded as-is
     forward_headers: Dict[str, str] = {}
     for header_name, header_value in request.headers.items():
-        if header_name.lower() not in hop_by_hop_headers:
+        if header_name.lower() not in HOP_BY_HOP_HEADERS:
             forward_headers[header_name] = header_value
     
-    # Add correlation ID if present (from middleware)
+    # Add correlation ID if available (from middleware)
     if "correlation_id" in request.scope:
         forward_headers["X-Correlation-ID"] = request.scope["correlation_id"]
     
-    # Read request body if present
+    # Read request body
     body = b""
     if request.method.upper() in {"POST", "PUT", "PATCH"}:
         body = await request.body()
     
     try:
         logger.info(
-            f"Proxying {request.method} {request.url.path} → {target_url}",
-            extra={"correlation_id": request.scope.get("correlation_id", "N/A")}
+            f"Proxying {request.method} {request.url.path} → {full_target_url}",
+            extra={"path": request.url.path, "method": request.method}
         )
         
-        # Create async HTTP client and forward request
+        # Forward request to upstream service
         async with httpx.AsyncClient(**HTTPX_CLIENT_CONFIG) as client:
             response = await client.request(
                 method=request.method.upper(),
-                url=target_url,
+                url=full_target_url,
                 headers=forward_headers,
                 content=body if body else None,
             )
         
-        # Extract response headers (exclude hop-by-hop headers)
+        # Prepare response headers (exclude hop-by-hop)
         response_headers = {
             k: v for k, v in response.headers.items()
-            if k.lower() not in hop_by_hop_headers
+            if k.lower() not in HOP_BY_HOP_HEADERS
         }
         
-        logger.debug(
-            f"Received {response.status_code} from upstream",
-            extra={"correlation_id": request.scope.get("correlation_id", "N/A")}
-        )
-        
+        logger.debug(f"Upstream responded with {response.status_code}")
         return response.status_code, response_headers, response.content
-        
-    except httpx.TimeoutException as e:
-        logger.error(
-            f"Timeout proxying to {upstream_url}: {str(e)}",
-            extra={"correlation_id": request.scope.get("correlation_id", "N/A")}
-        )
+    
+    except httpx.TimeoutException:
+        logger.error(f"Timeout proxying to {target_url}")
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Gateway timeout - upstream service did not respond in time",
+            detail="Gateway timeout - upstream service did not respond",
         )
-    except httpx.ConnectError as e:
-        logger.error(
-            f"Connection error to {upstream_url}: {str(e)}",
-            extra={"correlation_id": request.scope.get("correlation_id", "N/A")}
-        )
+    except httpx.ConnectError:
+        logger.error(f"Connection error to {target_url}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Service unavailable - cannot connect to upstream service",
+            detail="Service unavailable - cannot reach upstream service",
         )
     except Exception as e:
-        logger.exception(
-            f"Error proxying request to {upstream_url}: {str(e)}",
-            extra={"correlation_id": request.scope.get("correlation_id", "N/A")}
-        )
+        logger.exception(f"Error proxying to {target_url}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Bad gateway - error forwarding request to upstream service",
+            detail="Bad gateway - error forwarding request",
         )
 
 
@@ -284,62 +285,64 @@ async def proxy_request(
 )
 async def gateway_route(request: Request, path: str = ""):
     """
-    Universal gateway route handler.
+    Universal gateway route handler - Spring Cloud Gateway equivalent.
     
-    This is the catch-all route that handles ALL requests to the gateway.
-    It determines the target upstream service based on the request path,
-    forwards the request, and returns the upstream response.
+    This is the main entry point for all requests to the gateway.
+    It implements the complete routing logic from the Java application.yml:
     
-    Supports all standard HTTP methods and properly handles:
-    - JavaScript, CSS, and other static assets
-    - Service worker requests
-    - Frontend redirects
-    - API request forwarding
-    - Multipart form data
-    - JSON payloads
+    FRONTEND:
+      /app/**  → react-uri (no rewriting)
+      /home/** → flutter-uri (no rewriting)
+    
+    BACKEND:
+      /auth/**, /user/**, /roles/**      → user-management-service (path rewritten)
+      /contracts/**                       → contract-management-service (path rewritten)
+      /entity/**, /entityID/**           → entity-service (path rewritten)
+      /timesheet/**, /activity/**        → timesheet-management-service (path rewritten)
+      /emailtemplate/**                  → notification-service (path rewritten)
+    
+    SECURITY:
+      - No token validation in gateway
+      - All headers forwarded (Authorization header included)
+      - Backend services handle authentication
     
     Args:
         request: Incoming HTTP request
-        path: Request path (wildcard parameter)
+        path: Request path (path parameter)
         
     Returns:
-        StreamingResponse with upstream service's response
-        
-    Raises:
-        HTTPException: For routing failures or upstream errors
+        StreamingResponse with upstream service response
     """
     # Normalize path
     full_path = f"/{path}" if path else "/"
     
     try:
-        # Determine target service
-        service_id, service_url = determine_target_service(full_path)
+        # Determine routing
+        router_instance = GatewayRouter(get_settings())
+        route_info = router_instance.determine_route(full_path)
+        
+        if not route_info:
+            logger.warning(f"No route found for {full_path}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No route found for path: {full_path}",
+            )
+        
+        target_url, rewritten_path = route_info
         
         logger.info(
-            f"Routing {full_path} to service {service_id}",
-            extra={"correlation_id": request.scope.get("correlation_id", "N/A")}
+            f"Route: {full_path} → {target_url}{rewritten_path}",
+            extra={"path": full_path}
         )
         
-        # Special handling for frontend root
-        if service_id == "frontend":
-            if full_path == "/" or is_static_file(full_path):
-                # For root path, proxy to frontend
-                upstream_path = full_path
-            else:
-                # Non-static paths at root also go to frontend
-                upstream_path = full_path
-        else:
-            # Rewrite path for backend services (remove service prefix)
-            upstream_path = rewrite_path_for_upstream(full_path, service_id)
-        
-        # Forward request to upstream service
+        # Proxy request to target
         status_code, response_headers, response_body = await proxy_request(
+            target_url=target_url,
+            upstream_path=rewritten_path,
             request=request,
-            upstream_url=service_url,
-            upstream_path=upstream_path,
         )
         
-        # Return response from upstream service
+        # Return response
         return StreamingResponse(
             iter([response_body]),
             status_code=status_code,
@@ -348,13 +351,9 @@ async def gateway_route(request: Request, path: str = ""):
         )
     
     except HTTPException:
-        # Re-raise HTTP exceptions (already formatted)
         raise
     except Exception as exc:
-        logger.exception(
-            f"Unexpected error in gateway route handler: {str(exc)}",
-            extra={"correlation_id": request.scope.get("correlation_id", "N/A")}
-        )
+        logger.exception(f"Unexpected error: {str(exc)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",

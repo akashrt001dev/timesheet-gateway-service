@@ -120,6 +120,7 @@ start_service() {
         --host "${SERVER_HOST:-0.0.0.0}" \
         --port "${SERVER_PORT:-8000}" \
         --log-level "${LOG_LEVEL:-info}" \
+        --reload \
         > "$LOG_FILE" 2>&1 &
 
     PID=$!
@@ -219,7 +220,7 @@ health_check() {
     PORT="${SERVER_PORT:-8000}"
     HOST="${SERVER_HOST:-0.0.0.0}"
     
-    echo "Performing health check on http://$HOST:$PORT/health"
+    echo "Performing health check on http://$HOST:$PORT/actuator/health"
     
     if ! kill -0 "$(cat "$PID_FILE" 2>/dev/null)" 2>/dev/null; then
         echo "Service is not running"
@@ -228,7 +229,7 @@ health_check() {
 
     # Try to reach the health endpoint
     if command -v curl &> /dev/null; then
-        RESPONSE=$(curl -s -w "\n%{http_code}" http://localhost:$PORT/health 2>/dev/null || echo -e "\n000")
+        RESPONSE=$(curl -s -w "\n%{http_code}" http://localhost:$PORT/actuator/health 2>/dev/null || echo -e "\n000")
         HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
         BODY=$(echo "$RESPONSE" | sed '$d')
         

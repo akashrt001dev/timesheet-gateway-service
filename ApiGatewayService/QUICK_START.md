@@ -1,309 +1,183 @@
-# 🚀 Quick Start Guide - FastAPI Gateway Service
+# FastAPI Gateway - Quick Start Guide
 
-## 📍 Location
-```
-ApiGatewayService/
-```
-
-Located next to the original Spring Boot `api-gateway-service` folder.
-
----
-
-## ⚡ 5-Minute Setup
-
-### Step 1: Navigate to Project
-```bash
-cd ApiGatewayService
-```
-
-### Step 2: Create Environment File
-```bash
-# Copy example configuration
-cp .env.example .env
-
-# Edit with your service URLs (optional for local testing)
-# nano .env  (or use your editor)
-```
-
-### Step 3: Install Dependencies
-```bash
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# On Windows:
-venv\Scripts\activate
-# On Linux/macOS:
-source venv/bin/activate
-
-# Install packages
-pip install -r requirements.txt
-```
-
-### Step 4: Run the Gateway
-```bash
-# Start the server
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-### Step 5: Verify It Works
-```bash
-# In another terminal, test the health endpoint
-curl http://localhost:8000/actuator/health
-
-# Should return:
-# {
-#   "status": "UP",
-#   "service": "gateway-service",
-#   "timestamp": "2024-01-15T10:30:00.000Z",
-#   "version": "1.0.0"
-# }
-```
-
----
-
-## 🐳 Docker Setup (3 minutes)
+## One-Command Startup
 
 ```bash
-# Build and run with Docker Compose
-docker-compose up -d
-
-# Check status
-docker-compose ps
-
-# View logs
-docker-compose logs -f api-gateway
-
-# Stop
-docker-compose down
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
----
+## Configuration
 
-## 📖 Documentation Files
+Update `.env` with your service URLs:
 
-After setup, read these in order:
+```env
+# Frontend URLs
+REACT_URI=https://app.timesmartai.ca
+FLUTTER_URI=https://app.timesmartai.ca
 
-1. **README.md** - Complete guide
-2. **CONVERSION_GUIDE.md** - Spring Boot to FastAPI mapping
-3. **VERIFICATION_CHECKLIST.md** - Features & quality assurance
-4. **.env.example** - All configuration options
+# Backend Service URLs (domain-based, not IP:port)
+USER_MANAGEMENT_SERVICE_URL=http://localhost:8001
+CONTRACT_MANAGEMENT_SERVICE_URL=http://localhost:8002
+ENTITY_SERVICE_URL=http://localhost:8003
+TIMESHEET_MANAGEMENT_SERVICE_URL=http://localhost:8004
+NOTIFICATION_SERVICE_URL=http://localhost:8005
 
----
-
-## 🧪 Test the Gateway
-
-### Test Public Endpoint (No Auth Required)
-```bash
-curl -X POST http://localhost:8000/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "test", "password": "test"}'
+# Server
+SERVER_PORT=8000
+SERVER_HOST=0.0.0.0
+ENVIRONMENT=local
+LOG_LEVEL=INFO
 ```
 
-### Test Protected Endpoint (Requires Token)
-```bash
-curl http://localhost:8000/user/profile \
-  -H "Authorization: Bearer your-jwt-token-here"
-```
+## Key Routing Rules
 
-### View API Documentation
-```
-http://localhost:8000/docs
-```
+### Frontend (No Path Rewriting)
+- `/app/**` → `REACT_URI`
+- `/home/**` → `FLUTTER_URI`
 
----
+### Backend (Path Rewriting)
+- `/auth/**`, `/user/**`, `/roles/**` → USER_MANAGEMENT_SERVICE (strip prefix)
+- `/contracts/**` → CONTRACT_MANAGEMENT_SERVICE (strip `/contracts`)
+- `/entity/**`, `/entityID/**` → ENTITY_SERVICE (strip prefix)
+- `/timesheet/**`, `/activity/**` → TIMESHEET_MANAGEMENT_SERVICE (strip prefix)
+- `/emailtemplate/**` → NOTIFICATION_SERVICE (strip `/emailtemplate`)
 
-## ⚙️ Configuration
-
-### Key Environment Variables
-
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `SERVER_PORT` | 8000 | Port to listen on |
-| `JWT_SECRET` | [preset] | JWT signing key |
-| `USER_SERVICE_URL` | http://localhost:8001 | User service URL |
-| `LOG_LEVEL` | INFO | Logging level |
-
-See `.env.example` for all options.
-
----
-
-## 📚 What's Included
-
-✅ **Core Gateway**
-- Request routing to 4 microservices
-- JWT authentication
-- CORS support
-- Error handling
-
-✅ **Monitoring**
-- Health checks
-- Service info endpoint
-- Structured logging
-- Correlation ID tracking
-
-✅ **Deployment**
-- Dockerfile (production-ready)
-- Docker Compose
-- Startup scripts
-- Environment management
-
-✅ **Documentation**
-- 1500+ lines of docs
-- Configuration guide
-- Troubleshooting tips
-- Code examples
-
----
-
-## 🆘 Troubleshooting
-
-### Port Already in Use
-```bash
-# Linux/macOS
-lsof -i :8000
-kill -9 <PID>
-
-# Windows
-netstat -ano | findstr :8000
-taskkill /PID <PID> /F
-```
-
-### Service Connection Failed
-1. Check `.env` - verify service URLs
-2. Ensure upstream services are running
-3. Check logs: `docker-compose logs api-gateway`
-
-### JWT Token Invalid
-1. Verify token format: `Authorization: Bearer <token>`
-2. Check `JWT_SECRET` matches your auth service
-3. Verify token is not expired
-
----
-
-## 📂 Project Structure
-
-```
-ApiGatewayService/
-├── app/
-│   ├── main.py                 ← FastAPI application
-│   ├── api/gateway_routes.py   ← Routing logic
-│   ├── core/config.py          ← Configuration
-│   ├── core/security.py        ← JWT/Auth
-│   ├── services/               ← Gateway forwarding
-│   └── filters/                ← Middleware
-├── scripts/
-│   ├── start_gateway.sh        ← Linux/macOS startup
-│   └── start_gateway.bat       ← Windows startup
-├── Dockerfile                  ← Docker image
-├── docker-compose.yml          ← Full stack setup
-├── requirements.txt            ← Dependencies
-├── .env                        ← Local configuration
-├── README.md                   ← Full documentation
-└── CONVERSION_GUIDE.md         ← Spring Boot conversion details
-```
-
----
-
-## 🎯 Common Tasks
-
-### Start with Startup Script
-```bash
-# Linux/macOS
-chmod +x startup.sh
-./startup.sh start
-
-# Windows
-startup.bat start
-```
-
-### View Logs
-```bash
-# Using script
-./startup.sh logs
-
-# Using Docker
-docker-compose logs -f api-gateway
-
-# Direct uvicorn output
-# Check terminal where you ran uvicorn
-```
-
-### Stop the Service
-```bash
-# Using script
-./startup.sh stop
-
-# Using Docker
-docker-compose down
-
-# Using Ctrl+C in terminal
-# Press Ctrl+C where uvicorn is running
-```
-
----
-
-## 🔍 Verify Installation
-
-After running the gateway, verify these endpoints work:
+## Testing
 
 ```bash
-# 1. Health Check
-curl http://localhost:8000/actuator/health
-# Should return: {"status": "UP", ...}
+# Health check
+curl http://localhost:8000/health
 
-# 2. Service Info
-curl http://localhost:8000/actuator/info
-# Should return: {"name": "gateway-service", ...}
+# Authentication route (rewritten)
+curl -H "Authorization: Bearer token123" \
+     http://localhost:8000/auth/login
+# Forwarded to: http://localhost:8001/login
 
-# 3. API Documentation
-# Open in browser: http://localhost:8000/docs
-# Should show Swagger UI with all endpoints
+# Contract route (rewritten)
+curl http://localhost:8000/contracts/123
+# Forwarded to: http://localhost:8002/123
+
+# Frontend route (not rewritten)
+curl http://localhost:8000/app/dashboard
+# Forwarded to: https://app.timesmartai.ca/app/dashboard
 ```
 
----
+## Key Features
 
-## 📞 Need Help?
+✅ Exact Spring Cloud Gateway behavior
+✅ No token validation at gateway (backend handles it)
+✅ All headers forwarded (Authorization included)
+✅ All HTTP methods supported
+✅ Production-ready
 
-1. **Setup Issues?** → See README.md → Troubleshooting
-2. **Configuration Questions?** → See .env.example
-3. **Understanding Conversion?** → See CONVERSION_GUIDE.md
-4. **Feature Checklist?** → See VERIFICATION_CHECKLIST.md
+## Files
 
----
+| File | Purpose |
+|------|---------|
+| `app/main.py` | Application entry point |
+| `app/api/gateway_routes.py` | Routing & proxying logic |
+| `app/core/config.py` | Configuration from .env |
+| `app/core/security.py` | Public routes definition |
+| `app/services/gateway_forwarder.py` | Header/utility functions |
+| `.env` | Environment variables |
+| `requirements.txt` | Python dependencies |
 
-## ✨ What's Different from Spring Boot?
+## Implementation Matches Java Gateway
 
-✅ **Same Features**
-- API Gateway routing
-- JWT authentication
+| Aspect | Java Config | Python Implementation |
+|--------|-------------|----------------------|
+| Frontend routes | `uri: ${react-uri}` | Settings.react_uri |
+| Path rewriting | `RewritePath: /auth/(?<path>.*), /${path}` | Path slicing in determine_route() |
+| Token relay | `default-filters: [TokenRelay=]` | All headers forwarded in proxy_request() |
+| Token validation | None (backend) | None (backend) |
+| CORS | Spring CORS | FastAPI CORSMiddleware |
+| All methods | ✓ | ✓ |
+
+## Detailed Documentation
+
+- See **MIGRATION_GUIDE.md** for comprehensive guide
+- See **IMPLEMENTATION_SUMMARY.md** for detailed changes
+
+## What's Different from Java Gateway
+
+**Same:**
+- Routing behavior
+- Path rewriting
+- Header forwarding
 - CORS handling
-- Error handling
-- Health checks
+- No token validation
 
-✅ **Easier Setup**
-- No Maven/Java needed
-- Simple pip install
-- Standard Python tools
+**Different (but equivalent):**
+- Python async instead of Java Mono/Flux
+- httpx instead of WebClient
+- Environment variables instead of Eureka discovery
+- FastAPI instead of Spring WebFlux
 
-✅ **Better Documentation**
-- Comprehensive README
-- Code examples
-- Troubleshooting guide
+## Architecture
 
----
+```
+Client Request
+    ↓
+Gateway (main.py)
+    ↓ (CORS middleware)
+    ↓
+gateway_routes.py: determine_route()
+    ↓ (Route matching)
+    ↓
+gateway_routes.py: proxy_request()
+    ↓ (Header preparation, httpx forwarding)
+    ↓
+Backend Service (user-mgmt, contracts, etc)
+    ↓ (Service processes request + auth)
+    ↓
+Response back to Client
+```
 
-## 🎉 Ready to Go!
+## Common Issues
 
-Your FastAPI Gateway Service is now:
-- ✅ Fully converted from Spring Boot
-- ✅ Production-ready
-- ✅ Documented
-- ✅ Tested
+**Service not found 404:**
+- Check route matches exactly (case-sensitive)
+- Verify service URL in .env is correct
 
-**Next Step**: Read [README.md](README.md) for complete documentation.
+**Authorization header not received:**
+- Check backend service logs
+- Gateway forwards all headers including Authorization
 
----
+**CORS errors:**
+- Update CORS_ORIGINS in .env to include frontend URL
+- Default is `*` which allows all origins
 
-**Last Updated**: December 2024
-**Status**: Ready for Use ✨
+**Service unreachable 503:**
+- Verify backend service is running
+- Check network connectivity
+- Verify service URL in .env is correct
+
+## Production Deployment
+
+For Docker/Kubernetes, update .env with service DNS names:
+
+```env
+USER_MANAGEMENT_SERVICE_URL=http://user-management-service:8001
+CONTRACT_MANAGEMENT_SERVICE_URL=http://contract-management-service:8002
+ENTITY_SERVICE_URL=http://entity-service:8003
+TIMESHEET_MANAGEMENT_SERVICE_URL=http://timesheet-management-service:8004
+NOTIFICATION_SERVICE_URL=http://notification-service:8005
+```
+
+Use in Kubernetes deployment:
+```yaml
+spec:
+  containers:
+  - name: gateway
+    image: your-registry/gateway:latest
+    ports:
+    - containerPort: 8000
+    env:
+    - name: REACT_URI
+      value: "https://app.timesmartai.ca"
+    # ... other env vars
+```
+
+## Support
+
+The gateway is fully functional and production-ready. All routing logic is implemented exactly as specified in the Java `application.yml`.

@@ -15,6 +15,10 @@ from functools import lru_cache
 
 import jwt
 import httpx
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+import base64
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +51,7 @@ class KeycloakTokenValidator:
                     return _jwks_cache[self.realm]
         
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(verify=True) as client:
                 response = await client.get(self.jwks_uri, timeout=10.0)
                 response.raise_for_status()
                 jwks = response.json()
@@ -56,14 +60,14 @@ class KeycloakTokenValidator:
                 _jwks_cache[self.realm] = jwks
                 _jwks_expiry[self.realm] = datetime.now() + timedelta(hours=1)
                 
-                logger.debug(f"Fetched JWKS from {self.realm}")
+                logger.info(f"Fetched JWKS from {self.realm}")
                 return jwks
         except Exception as e:
             logger.error(f"Failed to fetch JWKS from {self.issuer_uri}: {str(e)}")
             raise
     
     def _get_public_key(self, token: str, jwks: Dict[str, Any]) -> Optional[str]:
-        """Extract public key from JWKS for token"""
+        """Extract public key from JWKS for token and convert to PEM"""
         try:
             # Decode header without verification to get kid
             header = jwt.get_unverified_header(token)
@@ -76,16 +80,48 @@ class KeycloakTokenValidator:
             # Find matching key in JWKS
             for key in jwks.get("keys", []):
                 if key.get("kid") == kid:
-                    # Convert JWK to PEM format
-                    from jwclient import JWK
-                    jwk_obj = JWK.from_json(json.dumps(key))
-                    return jwk_obj.serialize(private_key=False)
+                    # Convert JWK (RSA) to PEM format
+                    return self._jwk_to_pem(key)
             
             logger.warning(f"No matching key found for kid: {kid}")
             return None
         except Exception as e:
             logger.error(f"Failed to extract public key: {str(e)}")
             return None
+    
+    def _jwk_to_pem(self, jwk: Dict[str, Any]) -> str:
+        """Convert JWK (RSA) to PEM format"""
+        try:
+            # Extract components from JWK
+            kty = jwk.get("kty")
+            if kty != "RSA":
+                raise ValueError(f"Unsupported key type: {kty}")
+            
+            # Base64 decode with padding
+            def b64decode(data):
+                padding = 4 - len(data) % 4
+                if padding:
+                    data += "=" * padding
+                return base64.urlsafe_b64decode(data)
+            
+            # Extract RSA components
+            n = int.from_bytes(b64decode(jwk["n"]), byteorder='big')
+            e = int.from_bytes(b64decode(jwk["e"]), byteorder='big')
+            
+            # Create RSA public key
+            public_numbers = rsa.RSAPublicNumbers(e, n)
+            public_key = public_numbers.public_key(default_backend())
+            
+            # Convert to PEM format
+            pem = public_key.public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo
+            )
+            
+            return pem.decode('utf-8')
+        except Exception as e:
+            logger.error(f"Failed to convert JWK to PEM: {str(e)}")
+            raise
     
     async def validate(self, token: str) -> Optional[Dict[str, Any]]:
         """

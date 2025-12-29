@@ -117,6 +117,26 @@ class RouterValidator:
     Determines which routes require authentication
     """
 
+    OPEN_API_ENDPOINTS = {
+        "/",
+        "/health",
+        "/auth/login",
+        "/user/registerUserList",
+        "/user/register",
+        "/entityID",
+        "/user/setpassword",
+        "/user/updatepassword",
+        "/user/forgetpassword",
+        "/user",
+        "/entity/logo",
+        "/entity/logothumbnail",
+        "/actuator/health",
+        "/docs",
+        "/redoc",
+        "/openapi.json",
+        "/favicon.ico",
+    }
+
     @classmethod
     def is_secured(cls, path: str) -> bool:
         """
@@ -128,19 +148,10 @@ class RouterValidator:
         Returns:
             True if path requires auth, False if it's open
         """
-        from app.core.config import GatewayRouteConfig
-        
         # Check if path exactly matches or starts with any open endpoint
-        for endpoint in GatewayRouteConfig.OPEN_ENDPOINTS:
-            if endpoint.endswith("/**"):
-                # Wildcard endpoint
-                base = endpoint.rstrip("/**")
-                if path == base or path.startswith(base + "/"):
-                    return False
-            else:
-                # Exact endpoint
-                if path == endpoint:
-                    return False
+        for endpoint in cls.OPEN_API_ENDPOINTS:
+            if path == endpoint or path.startswith(endpoint.rstrip("*")):
+                return False
         return True
 
     @classmethod

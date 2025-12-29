@@ -322,6 +322,12 @@ async def gateway_route(request: Request, path: str = ""):
         route_info = router_instance.determine_route(full_path)
         
         if not route_info:
+            # Handle root path redirect to Flutter home
+            if full_path == "/":
+                from fastapi.responses import RedirectResponse
+                logger.info("Redirecting / to /home")
+                return RedirectResponse(url="/home", status_code=307)
+            
             logger.warning(f"No route found for {full_path}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

@@ -6,7 +6,8 @@ This gateway mirrors the Spring Cloud Gateway configuration:
 - Frontend routing (/app, /home) to React and Flutter UIs
 - Backend service routing with path rewriting
 - Token relay (forward Authorization headers as-is)
-- No token validation in gateway (services handle validation)
+- Keycloak OAuth2 JWT validation for protected endpoints
+- Multi-realm support for different Keycloak realms
 """
 import logging
 import json

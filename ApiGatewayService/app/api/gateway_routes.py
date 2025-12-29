@@ -2,38 +2,31 @@
 FastAPI Gateway Router - Spring Cloud Gateway Equivalent
 
 This module implements routing and proxying matching the Java Spring Cloud Gateway
-configuration from application.yml:
+configuration from application.yml with Keycloak OAuth2 JWT token validation.
 
-FRONTEND ROUTING:
+FRONTEND ROUTING (Public - no auth required):
   /app/**  → react-uri
   /home/** → flutter-uri
 
-BACKEND SERVICE ROUTING WITH PATH REWRITING:
-  /auth/**, /user/**, /roles/** 
-    → user-management-service
-    → strip prefix before forwarding
+PUBLIC ROUTES (No auth required):
+  /login, /oauth2, /, /home, /app, /docs, /health, /actuator/health
+  /user-management-service/user/ssoid/**
+  /entity-service/entityID
+  /entity-service/entity/logo
+  /entity-service/entity/allEntity
 
-  /contracts/**
-    → contract-management-service  
-    → strip "/contracts"
-
-  /entity/**, /entityID/**
-    → entity-service
-    → strip "/entity"
-
-  /timesheet/**, /activity/**
-    → timesheet-management-service
-    → strip corresponding prefix
-
-  /emailtemplate/**
-    → notification-service
-    → strip "/emailtemplate"
+BACKEND SERVICE ROUTING (Protected - JWT required):
+  /auth/**, /user/**, /roles/**      → user-management-service (path rewritten)
+  /contracts/**                       → contract-management-service (path rewritten)
+  /entity/**, /entityID/**           → entity-service (path rewritten)
+  /timesheet/**, /activity/**        → timesheet-management-service (path rewritten)
+  /emailtemplate/**                  → notification-service (path rewritten)
 
 SECURITY:
-  - NO token validation in gateway
-  - Forward Authorization header as-is (TokenRelay)
-  - All headers forwarded to backend services
-  - Backend services handle authentication/authorization
+  - Validates JWT tokens from Keycloak (supports multiple realms)
+  - Returns 401 for missing/invalid tokens on protected routes
+  - Forwards Authorization header to backend services (TokenRelay)
+  - Extracts and logs user info from JWT claims
 
 All HTTP methods supported: GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD
 """
@@ -47,6 +40,7 @@ from fastapi import APIRouter, Request, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from app.core.config import get_settings
+from app.core.keycloak import KeycloakConfig, extract_roles, get_username
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -63,6 +57,22 @@ HTTPX_CLIENT_CONFIG = {
 HOP_BY_HOP_HEADERS = {
     "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
     "te", "trailers", "transfer-encoding", "upgrade", "host",
+}
+
+# Public routes (no authentication required)
+PUBLIC_ROUTES = {
+    "/login",
+    "/oauth2",
+    "/",
+    "/home",
+    "/app",
+    "/docs",
+    "/health",
+    "/actuator/health",
+    "/user-management-service/user/ssoid",
+    "/entity-service/entityID",
+    "/entity-service/entity/logo",
+    "/entity-service/entity/allEntity",
 }
 
 
@@ -300,6 +310,74 @@ async def proxy_request(
         )
 
 
+def _is_public_route(path: str) -> bool:
+    """Check if path is public (no auth required)"""
+    # Exact match
+    if path in PUBLIC_ROUTES:
+        return True
+    
+    # Prefix match
+    for public in PUBLIC_ROUTES:
+        if path.startswith(public + "/"):
+            return True
+    
+    return False
+
+
+async def _validate_token_if_required(request: Request, path: str) -> Optional[Dict]:
+    """
+    Validate JWT token for protected routes
+    
+    Returns:
+        User claims dict if authenticated, None if public route
+        
+    Raises:
+        HTTPException 401 if token is invalid/missing on protected route
+    """
+    settings = get_settings()
+    
+    # Public routes don't need auth
+    if _is_public_route(path):
+        return None
+    
+    # Skip auth if Keycloak is disabled
+    if not settings.keycloak_enabled:
+        logger.warning(f"Keycloak disabled but accessing protected route: {path}")
+        return None
+    
+    # Extract token from Authorization header
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        logger.warning(f"Missing authorization token for {path}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization header required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    token = auth_header[7:]
+    
+    # Try to validate with each realm's validator
+    validators = KeycloakConfig.get_validators()
+    for realm, validator in validators.items():
+        claims = await validator.validate(token)
+        if claims:
+            username = get_username(claims)
+            roles = extract_roles(claims)
+            logger.info(
+                f"Authenticated user: {username} from realm: {realm} "
+                f"with roles: {', '.join(roles)}"
+            )
+            return {"claims": claims, "realm": realm, "username": username, "roles": roles}
+    
+    logger.warning(f"Token validation failed for all realms for path: {path}")
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or expired token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
 @router.api_route(
     "/{path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
@@ -310,13 +388,13 @@ async def gateway_route(request: Request, path: str = ""):
     Universal gateway route handler - Spring Cloud Gateway equivalent.
     
     This is the main entry point for all requests to the gateway.
-    It implements the complete routing logic from the Java application.yml:
+    Validates JWT tokens from Keycloak for protected routes and proxies to backend services.
     
-    FRONTEND:
+    FRONTEND (Public):
       /app/**  → react-uri (no rewriting)
       /home/** → flutter-uri (no rewriting)
     
-    BACKEND:
+    BACKEND (Protected - JWT required):
       /auth/**, /user/**, /roles/**      → user-management-service (path rewritten)
       /contracts/**                       → contract-management-service (path rewritten)
       /entity/**, /entityID/**           → entity-service (path rewritten)
@@ -324,9 +402,10 @@ async def gateway_route(request: Request, path: str = ""):
       /emailtemplate/**                  → notification-service (path rewritten)
     
     SECURITY:
-      - No token validation in gateway
-      - All headers forwarded (Authorization header included)
-      - Backend services handle authentication
+      - Validates JWT tokens from Keycloak (supports multiple realms)
+      - Returns 401 for missing/invalid tokens on protected routes
+      - Public routes (/login, /oauth2, /, /home, /app, /docs) bypass auth
+      - TokenRelay: Authorization header forwarded to backend
     
     Args:
         request: Incoming HTTP request
@@ -339,33 +418,8 @@ async def gateway_route(request: Request, path: str = ""):
     full_path = f"/{path}" if path else "/"
     
     try:
-        # Handle Keycloak login/logout redirects (before routing to services)
-        settings = get_settings()
-        if settings.keycloak_enabled:
-            if full_path == "/auth/login" or full_path.startswith("/auth/login?"):
-                from urllib.parse import urlencode
-                from fastapi.responses import RedirectResponse
-                
-                auth_endpoint = f"{settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/auth"
-                params = {
-                    "client_id": settings.keycloak_client_id,
-                    "redirect_uri": settings.keycloak_redirect_uri,
-                    "response_type": "code",
-                    "scope": "openid profile email offline_access roles",
-                }
-                login_url = f"{auth_endpoint}?{urlencode(params)}"
-                logger.info(f"Redirecting to Keycloak login: {auth_endpoint}")
-                return RedirectResponse(url=login_url, status_code=302)
-            
-            if full_path == "/auth/logout" or full_path.startswith("/auth/logout?"):
-                from urllib.parse import urlencode
-                from fastapi.responses import RedirectResponse
-                
-                logout_endpoint = f"{settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/logout"
-                params = {"redirect_uri": settings.post_logout_redirect_path}
-                logout_url = f"{logout_endpoint}?{urlencode(params)}"
-                logger.info(f"Redirecting to Keycloak logout: {logout_endpoint}")
-                return RedirectResponse(url=logout_url, status_code=302)
+        # Validate token for protected routes
+        user = await _validate_token_if_required(request, full_path)
         
         # Determine routing
         router_instance = GatewayRouter(get_settings())

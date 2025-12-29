@@ -140,6 +140,7 @@ class GatewayForwarder:
 
         # Map service names to configured URLs
         service_map = {
+            "frontend": settings.frontend_url,
             "user-management-service": settings.user_service_url,
             "contract-management-service": settings.contract_service_url,
             "entity-service": settings.entity_service_url,

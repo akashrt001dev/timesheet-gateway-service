@@ -51,7 +51,9 @@ UPSTREAM_SERVICES: Dict[str, str] = {
 }
 
 # Route predicates mapping path prefixes to service identifiers
+# Includes both direct paths and /api/ prefixed paths (from nginx)
 ROUTE_PREDICATES: Dict[str, str] = {
+    # Direct paths
     "/user-management-service": "user-management-service",
     "/auth": "user-management-service",
     "/user": "user-management-service",
@@ -65,6 +67,12 @@ ROUTE_PREDICATES: Dict[str, str] = {
     "/timesheet-management-service": "timesheet-management-service",
     "/timesheet": "timesheet-management-service",
     "/activity": "timesheet-management-service",
+    # Nginx /api/ prefixed paths
+    "/api/user-management-service": "user-management-service",
+    "/api/contract-managment-service": "contract-managment-service",
+    "/api/contract-management-service": "contract-management-service",
+    "/api/entity-service": "entity-service",
+    "/api/timesheet-management-service": "timesheet-management-service",
 }
 
 
@@ -81,20 +89,25 @@ def is_static_file(path: str) -> bool:
     return any(path.lower().endswith(ext) for ext in STATIC_EXTENSIONS)
 
 
-def determine_target_service(path: str) -> Optional[Tuple[str, str]]:
+def determine_target_service(path: str) -> Tuple[str, str]:
     """
     Determine the target upstream service and base URL for a given path.
     
     Uses a priority-based matching system:
-    1. Exact prefix matching from ROUTE_PREDICATES
-    2. Falls back to frontend for root paths
+    1. Root path "/" → always frontend
+    2. Exact prefix matching from ROUTE_PREDICATES (longest first)
+    3. All unmatched paths → frontend
     
     Args:
         path: Request path (e.g., "/user-management-service/api/users")
         
     Returns:
-        Tuple of (service_identifier, service_url) or (None, None) if no match
+        Tuple of (service_identifier, service_url) - NEVER returns None
     """
+    # Root path ALWAYS goes to frontend
+    if path == "/":
+        return "frontend", FRONTEND_URL
+    
     # Check each route predicate in priority order
     # Sort by length descending to match longest prefix first
     sorted_predicates = sorted(
@@ -109,11 +122,8 @@ def determine_target_service(path: str) -> Optional[Tuple[str, str]]:
             if service_url:
                 return service_id, service_url
     
-    # Root path or unmatched paths → frontend
-    if path == "/" or path.startswith("/"):
-        return "frontend", FRONTEND_URL
-    
-    return None, None
+    # All unmatched paths → frontend
+    return "frontend", FRONTEND_URL
 
 
 def rewrite_path_for_upstream(path: str, service_id: str) -> str:
@@ -305,15 +315,10 @@ async def gateway_route(request: Request, path: str = ""):
         # Determine target service
         service_id, service_url = determine_target_service(full_path)
         
-        if not service_url:
-            logger.warning(
-                f"No route found for path: {full_path}",
-                extra={"correlation_id": request.scope.get("correlation_id", "N/A")}
-            )
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No route found for {full_path}",
-            )
+        logger.info(
+            f"Routing {full_path} to service {service_id}",
+            extra={"correlation_id": request.scope.get("correlation_id", "N/A")}
+        )
         
         # Special handling for frontend root
         if service_id == "frontend":

@@ -15,6 +15,15 @@ class GatewayRouteConfig:
     """Gateway Route Configuration"""
 
     ROUTES = {
+        "frontend": {
+            "id": "frontend",
+            "uri": "https://smmc-io-prod.timesmart.io",
+            "predicates": [
+                "/**"  # Catch-all for root and unmapped paths
+            ],
+            "rewrites": {},
+            "remove_headers": ["Cookie", "Set-Cookie"],
+        },
         "user-management-service": {
             "id": "user-management-service",
             "uri": "lb://user-management-service",
@@ -110,6 +119,9 @@ class Settings(BaseSettings):
     eureka_app_name: str = Field(default="gateway-service", alias="EUREKA_APP_NAME")
 
     # Upstream Services Configuration
+    frontend_url: Optional[str] = Field(
+        default="https://smmc-io-prod.timesmart.io", alias="FRONTEND_URL"
+    )
     user_service_url: Optional[str] = Field(
         default="http://localhost:8001", alias="USER_SERVICE_URL"
     )

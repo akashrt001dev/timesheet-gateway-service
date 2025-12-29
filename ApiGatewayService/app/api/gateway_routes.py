@@ -97,6 +97,28 @@ class GatewayRouter:
         #   /user/(?<path>.*)  → /${path}   (strip /user)
         #   /roles/(?<path>.*) → /${path}   (strip /roles)
         self.backend_routes = {
+            # Service-specific prefixes (longest first for priority matching)
+            "/user-management-service": (
+                settings.user_management_service_url,
+                "/user-management-service"
+            ),
+            "/contract-management-service": (
+                settings.contract_management_service_url,
+                "/contract-management-service"
+            ),
+            "/entity-service": (
+                settings.entity_service_url,
+                "/entity-service"
+            ),
+            "/timesheet-management-service": (
+                settings.timesheet_management_service_url,
+                "/timesheet-management-service"
+            ),
+            "/notification-service": (
+                settings.notification_service_url,
+                "/notification-service"
+            ),
+            # Direct API prefixes (backward compatibility)
             "/auth": (
                 settings.user_management_service_url,
                 "/auth"

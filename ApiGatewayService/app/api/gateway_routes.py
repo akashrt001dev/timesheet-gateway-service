@@ -63,6 +63,7 @@ HOP_BY_HOP_HEADERS = {
 PUBLIC_ROUTES = {
     "/login",
     "/oauth2",
+    "/login/oauth2",  # OAuth2 callback endpoint and all OAuth2 callback paths
     "/",
     "/app",
     "/docs",
@@ -107,6 +108,11 @@ class GatewayRouter:
         #   /user/(?<path>.*)  → /${path}   (strip /user)
         #   /roles/(?<path>.*) → /${path}   (strip /roles)
         self.backend_routes = {
+            # OAuth2 callback endpoint - forward to user management service
+            "/login/oauth2": (
+                settings.user_management_service_url,
+                "/login/oauth2"
+            ),
             # Service-specific prefixes (longest first for priority matching)
             "/user-management-service": (
                 settings.user_management_service_url,

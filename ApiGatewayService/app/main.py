@@ -142,7 +142,8 @@ def create_app() -> FastAPI:
     # Include authentication routes (Keycloak redirects)
     if settings.keycloak_enabled:
         app.include_router(auth_routes.router)
-        logger.info("Authentication routes registered (/auth/login, /auth/logout)")
+        app.include_router(auth_routes.oauth2_router)
+        logger.info("Authentication routes registered (/auth/login, /auth/logout, /login/oauth2/code/*)")
     
     app_instance = app
     logger.info(f"Application created: {settings.app_name}")

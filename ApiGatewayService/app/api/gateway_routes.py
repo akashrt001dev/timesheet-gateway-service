@@ -273,7 +273,27 @@ async def proxy_request(
 
     if request.url.path.startswith("/entity-service/entityID"):
         forward_headers.pop("Authorization", None)
-    
+
+# =====================================================
+# 🔥 ADD FORWARDED HEADERS (HTTPS COMPATIBILITY FIX)
+# =====================================================
+
+    # Tell backend original protocol (http / https)
+    if "X-Forwarded-Proto" not in forward_headers:
+        proto = request.headers.get("X-Forwarded-Proto") or request.url.scheme
+        forward_headers["X-Forwarded-Proto"] = proto
+
+    # Client IP
+    if "X-Forwarded-For" not in forward_headers:
+        if request.client and request.client.host:
+            forward_headers["X-Forwarded-For"] = request.client.host
+
+    # Original host
+    if "X-Forwarded-Host" not in forward_headers:
+        host = request.headers.get("Host")
+        if host:
+            forward_headers["X-Forwarded-Host"] = host
+
     # Add correlation ID if available (from middleware)
     if "correlation_id" in request.scope:
         forward_headers["X-Correlation-ID"] = request.scope["correlation_id"]

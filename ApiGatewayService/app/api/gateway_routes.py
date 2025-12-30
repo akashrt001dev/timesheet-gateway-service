@@ -258,12 +258,13 @@ async def proxy_request(
     
     # Prepare headers: forward all except hop-by-hop headers
     # This implements TokenRelay - Authorization header is forwarded as-is
-    # Match Java gateway behavior: forward headers exactly as received
+    # Match Java gateway behavior: forward headers exactly as received, skip empty/None values
     forward_headers: Dict[str, str] = {}
     for header_name, header_value in request.headers.items():
         if header_name.lower() not in HOP_BY_HOP_HEADERS:
-            # Forward header as-is, converting to string
-            forward_headers[header_name] = str(header_value) if header_value else ""
+            # Skip None or empty string headers - backend will crash if we send empty headers
+            if header_value is not None and str(header_value).strip():
+                forward_headers[header_name] = str(header_value)
     
     # If token is provided (from cookie), add it as Authorization header
     # This ensures backend services receive the token for validation

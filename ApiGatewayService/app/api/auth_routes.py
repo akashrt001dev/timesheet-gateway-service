@@ -107,7 +107,6 @@ async def oauth2_callback(request: Request, provider_or_realm: str):
     Returns:
         Redirect to home page with tokens in secure HTTP-only cookies
     """
-    print("aaaaaaaaaaaaaaaaaaaaaaaaaaa")
     settings = get_settings()
     
     logger.info(f"OAuth2 callback received for provider/realm: {provider_or_realm}")

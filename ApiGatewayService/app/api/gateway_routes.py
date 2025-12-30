@@ -221,6 +221,7 @@ async def proxy_request(
     target_url: str,
     upstream_path: str,
     request: Request,
+    token: str = None,
     timeout: float = HTTPX_TIMEOUT,
 ) -> Tuple[int, Dict[str, str], bytes]:
     """
@@ -238,6 +239,7 @@ async def proxy_request(
         target_url: Base URL of target service (e.g., "http://localhost:8001")
         upstream_path: Path to forward (e.g., "/login")
         request: Incoming FastAPI request
+        token: JWT token to forward as Authorization header (optional)
         timeout: Request timeout in seconds
         
     Returns:
@@ -257,6 +259,12 @@ async def proxy_request(
     for header_name, header_value in request.headers.items():
         if header_name.lower() not in HOP_BY_HOP_HEADERS:
             forward_headers[header_name] = header_value
+    
+    # If token is provided (from cookie), add it as Authorization header
+    # This ensures backend services receive the token for validation
+    if token:
+        forward_headers["Authorization"] = f"Bearer {token}"
+        logger.debug(f"Adding Authorization header from token for {upstream_path}")
     
     # Add correlation ID if available (from middleware)
     if "correlation_id" in request.scope:
@@ -531,11 +539,22 @@ async def gateway_route(request: Request, path: str = ""):
             extra={"path": full_path}
         )
         
-        # Proxy request to target
+        # Extract token for proxying to backend services
+        proxy_token = None
+        if user:  # user is authenticated
+            # Extract token from Authorization header or cookies
+            auth_header = request.headers.get("Authorization")
+            if auth_header and auth_header.startswith("Bearer "):
+                proxy_token = auth_header[7:]
+            elif "access_token" in request.cookies:
+                proxy_token = request.cookies.get("access_token")
+        
+        # Proxy request to target with token
         status_code, response_headers, response_body = await proxy_request(
             target_url=target_url,
             upstream_path=rewritten_path,
             request=request,
+            token=proxy_token,
         )
         
         # Return response

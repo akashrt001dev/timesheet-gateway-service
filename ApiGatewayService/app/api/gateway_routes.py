@@ -266,11 +266,16 @@ async def proxy_request(
                 forward_headers[header_name] = header_value
     
     # If token is provided (from cookie), add it as Authorization header
-    # This ensures backend services receive the token for validation
-    if token and "Authorization" not in forward_headers:
+    # Skip adding Authorization for frontend requests
+    if (
+        token
+        and "Authorization" not in forward_headers
+        and (service_name is None or service_name != "frontend")
+    ):
         forward_headers["Authorization"] = f"Bearer {token}"
         logger.debug(f"Adding Authorization header from token for {upstream_path}")
 
+    # Never send Authorization to public entity ID endpoint
     if request.url.path.startswith("/entity-service/entityID"):
         forward_headers.pop("Authorization", None)
 
@@ -575,13 +580,6 @@ async def gateway_route(request: Request, path: str = ""):
             extra={"path": full_path}
         )
         
-        # Redirect /app/** directly to React frontend (no proxying)
-        if full_path.startswith("/app"):
-            settings = get_settings()
-            redirect_to = urljoin(settings.react_uri.rstrip("/"), full_path)
-            logger.info(f"Redirecting /app route to {redirect_to}")
-            return RedirectResponse(url=redirect_to, status_code=307)
-        
         # Determine service name for header injection
         service_name = "frontend"
         settings = get_settings()
@@ -596,6 +594,14 @@ async def gateway_route(request: Request, path: str = ""):
         elif target_url == settings.notification_service_url:
             service_name = "notification-service"
         
+        # If this is the React frontend under /app, redirect the browser directly
+        # to the external host to avoid proxy 5xx issues and ensure SPA routing.
+        if service_name == "frontend" and full_path.startswith("/app"):
+            settings = get_settings()
+            redirect_to = urljoin(settings.react_uri.rstrip("/"), full_path)
+            logger.info(f"Redirecting frontend request to {redirect_to}")
+            return RedirectResponse(url=redirect_to, status_code=307)
+
         # Extract token and user ID for proxying to backend services
         proxy_token = None
         user_id = None
@@ -621,13 +627,36 @@ async def gateway_route(request: Request, path: str = ""):
             logger.info(f"Injected user ID into path: {rewritten_path}")
         
         # Proxy request to target with token and service name for tenant ID injection
-        status_code, response_headers, response_body = await proxy_request(
-            target_url=target_url,
-            upstream_path=rewritten_path,
-            request=request,
-            token=proxy_token,
-            service_name=service_name,
-        )
+        try:
+            status_code, response_headers, response_body = await proxy_request(
+                target_url=target_url,
+                upstream_path=rewritten_path,
+                request=request,
+                token=proxy_token,
+                service_name=service_name,
+            )
+            # Frontend 404 fallback removed: preserve original path semantics
+            # Frontend 5xx fallback: if upstream returns 502/503/504, redirect to external host
+            if service_name == "frontend" and status_code in {502, 503, 504}:
+                settings = get_settings()
+                redirect_to = urljoin(settings.react_uri.rstrip("/"), full_path)
+                logger.warning(
+                    f"Frontend upstream returned {status_code}. Redirecting to {redirect_to}"
+                )
+                return RedirectResponse(url=redirect_to, status_code=307)
+        except HTTPException as e:
+            # If frontend is unreachable, gracefully redirect the browser to the frontend host
+            if service_name == "frontend" and e.status_code in {502, 503, 504}:
+                settings = get_settings()
+                # For frontend, try a redirect to the external app host as a fallback
+                # Preserve the original path completely
+                redirect_to = urljoin(settings.react_uri.rstrip("/"), full_path)
+                logger.warning(
+                    f"Frontend upstream unreachable (status {e.status_code}). Redirecting to {redirect_to}"
+                )
+                return RedirectResponse(url=redirect_to, status_code=307)
+            # Otherwise, re-raise
+            raise
         
         # Return response
         return StreamingResponse(

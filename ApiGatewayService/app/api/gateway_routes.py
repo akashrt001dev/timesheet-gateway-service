@@ -553,6 +553,9 @@ async def gateway_route(request: Request, path: str = ""):
             if full_path == "/":
                 logger.info("Redirecting / to /home")
                 return RedirectResponse(url="/home", status_code=307)
+            if full_path == "/app":
+                logger.info("Redirecting / to /app")
+                return RedirectResponse(url="/app", status_code=307)
             
             # If it's a public route but no backend route found, it should be handled by a dedicated endpoint
             # (e.g., oauth2_router handles /login/oauth2/code/*)

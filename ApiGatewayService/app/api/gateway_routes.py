@@ -256,12 +256,14 @@ async def proxy_request(
     if request.url.query:
         full_target_url = f"{full_target_url}?{request.url.query}"
     
-    # Prepare headers: forward all except hop-by-hop headers
+    # Prepare headers: forward all except hop-by-hop headers and empty values
     # This implements TokenRelay - Authorization header is forwarded as-is
     forward_headers: Dict[str, str] = {}
     for header_name, header_value in request.headers.items():
         if header_name.lower() not in HOP_BY_HOP_HEADERS:
-            forward_headers[header_name] = header_value
+            # Skip empty string values to prevent backend issues
+            if header_value and header_value.strip():
+                forward_headers[header_name] = header_value
     
     # If token is provided (from cookie), add it as Authorization header
     # This ensures backend services receive the token for validation
@@ -283,6 +285,13 @@ async def proxy_request(
             f"Proxying {request.method} {request.url.path} → {full_target_url}",
             extra={"path": request.url.path, "method": request.method}
         )
+        
+        # Log request details for debugging
+        logger.debug(f"Request method: {request.method}")
+        logger.debug(f"Target URL: {full_target_url}")
+        logger.debug(f"Headers being forwarded:")
+        for header_name, header_value in forward_headers.items():
+            logger.debug(f"  {header_name}: {header_value}")
         
         # Forward request to upstream service
         async with httpx.AsyncClient(**HTTPX_CLIENT_CONFIG) as client:

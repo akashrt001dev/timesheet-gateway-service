@@ -261,43 +261,13 @@ async def proxy_request(
     forward_headers: Dict[str, str] = {}
     for header_name, header_value in request.headers.items():
         if header_name.lower() not in HOP_BY_HOP_HEADERS:
-            # Skip null or empty header values to prevent backend null pointer exceptions
-            if header_value and str(header_value).strip():
-                forward_headers[header_name] = header_value
-            else:
-                logger.debug(f"Skipping null/empty header: {header_name}")
-    
-    logger.debug(f"Forwarding headers: {list(forward_headers.keys())}")
-    
-    # Ensure essential headers are present
-    # Add default Content-Type if not provided (backends often expect this)
-    if "content-type" not in {k.lower() for k in forward_headers.keys()}:
-        if request.method.upper() in {"POST", "PUT", "PATCH"}:
-            forward_headers["Content-Type"] = "application/json"
-        else:
-            # For GET requests, add a default Content-Type
-            forward_headers["Content-Type"] = "application/json"
-    
-    # Ensure Accept header is present
-    if "accept" not in {k.lower() for k in forward_headers.keys()}:
-        forward_headers["Accept"] = "application/json"
-    
-    logger.debug(f"Final headers to forward: {dict(forward_headers)}")
+            forward_headers[header_name] = header_value
     
     # If token is provided (from cookie), add it as Authorization header
     # This ensures backend services receive the token for validation
     if token:
         forward_headers["Authorization"] = f"Bearer {token}"
         logger.debug(f"Adding Authorization header from token for {upstream_path}")
-    
-    # Inject X-tenantID header for authenticated requests to backend services
-    # Only inject for authenticated requests (when token is present)
-    # Public endpoints that don't require auth should not have this header
-    settings = get_settings()
-    if token and service_name and service_name != "frontend":
-        tenant_id = settings.keycloak_realm
-        forward_headers["X-tenantID"] = tenant_id
-        logger.debug(f"Adding X-tenantID header: {tenant_id} for service: {service_name}")
     
     # Add correlation ID if available (from middleware)
     if "correlation_id" in request.scope:

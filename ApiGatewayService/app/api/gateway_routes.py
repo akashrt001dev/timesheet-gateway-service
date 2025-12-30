@@ -117,6 +117,10 @@ class GatewayRouter:
                 settings.contract_management_service_url,
                 "/contract-management-service"
             ),
+            "/contract-managment-service": (
+                settings.contract_management_service_url,
+                "/contract-managment-service"
+            ),
             "/entity-service": (
                 settings.entity_service_url,
                 "/entity-service"

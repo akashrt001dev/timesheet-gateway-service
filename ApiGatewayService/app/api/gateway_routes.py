@@ -593,14 +593,6 @@ async def gateway_route(request: Request, path: str = ""):
             service_name = "timesheet-management-service"
         elif target_url == settings.notification_service_url:
             service_name = "notification-service"
-        
-        # If this is the React frontend under /app, redirect the browser directly
-        # to the external host to avoid proxy 5xx issues and ensure SPA routing.
-        if service_name == "frontend" and full_path.startswith("/app"):
-            settings = get_settings()
-            redirect_to = urljoin(settings.react_uri.rstrip("/"), full_path)
-            logger.info(f"Redirecting frontend request to {redirect_to}")
-            return RedirectResponse(url=redirect_to, status_code=307)
 
         # Extract token and user ID for proxying to backend services
         proxy_token = None

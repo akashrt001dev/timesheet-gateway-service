@@ -269,10 +269,11 @@ async def proxy_request(
         forward_headers["Authorization"] = f"Bearer {token}"
         logger.debug(f"Adding Authorization header from token for {upstream_path}")
     
-    # Inject X-tenantID header for backend services
-    # Backend services require tenant ID to scope requests properly
+    # Inject X-tenantID header for authenticated requests to backend services
+    # Only inject for authenticated requests (when token is present)
+    # Public endpoints that don't require auth should not have this header
     settings = get_settings()
-    if service_name and service_name != "frontend":
+    if token and service_name and service_name != "frontend":
         tenant_id = settings.keycloak_realm
         forward_headers["X-tenantID"] = tenant_id
         logger.debug(f"Adding X-tenantID header: {tenant_id} for service: {service_name}")

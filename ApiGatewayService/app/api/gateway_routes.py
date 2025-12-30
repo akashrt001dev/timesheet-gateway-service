@@ -355,17 +355,18 @@ async def proxy_request(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail="Gateway timeout - upstream service did not respond",
         )
-    except httpx.ConnectError:
-        logger.error(f"Connection error to {target_url}")
+    except httpx.ConnectError as e:
+        logger.error(f"Connection error to {target_url}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Service unavailable - cannot reach upstream service",
+            detail=f"Service unavailable - cannot reach {target_url}",
         )
     except Exception as e:
         logger.exception(f"Error proxying to {target_url}: {str(e)}")
+        logger.error(f"Full error details: {type(e).__name__} - {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Bad gateway - error forwarding request",
+            detail=f"Bad gateway - error forwarding request to {target_url}",
         )
 
 

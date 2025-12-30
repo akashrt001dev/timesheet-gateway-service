@@ -176,11 +176,6 @@ async def oauth2_callback(request: Request, provider_or_realm: str):
         logger.info(f"Token exchange successful, user authenticated")
         
         # Create response that redirects to home page
-        # In production, you might want to:
-        # 1. Store tokens in HTTP-only secure cookies
-        # 2. Create a session
-        # 3. Redirect to a specific page with tokens in URL fragment
-        
         response = RedirectResponse(
             url=settings.post_login_redirect_path,
             status_code=302
@@ -194,7 +189,7 @@ async def oauth2_callback(request: Request, provider_or_realm: str):
                 key="access_token",
                 value=tokens["access_token"],
                 httponly=True,
-                secure=True,  # Only send over HTTPS
+                secure=True,  # HTTPS only
                 samesite="lax",  # CSRF protection
                 max_age=tokens.get("expires_in", 3600),  # Token TTL
             )

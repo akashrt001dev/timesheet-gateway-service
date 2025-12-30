@@ -411,9 +411,7 @@ async def _validate_token_if_required(request: Request, path: str) -> Optional[D
             }
         )
     
-    # Validate token
-    token = auth_header[7:]
-    
+    # Token is now either from Authorization header or from cookie
     # Try to validate with each realm's validator
     validators = KeycloakConfig.get_validators()
     for realm, validator in validators.items():

@@ -143,6 +143,9 @@ async def oauth2_callback(request: Request, provider_or_realm: str):
         }
         
         logger.info(f"Exchanging code at token endpoint: {token_endpoint}")
+        logger.info(f"Token request - client_id: {settings.keycloak_client_id}")
+        logger.info(f"Token request - redirect_uri: {settings.keycloak_redirect_uri}")
+        logger.info(f"Token request - code: {code[:20]}..." if len(code) > 20 else f"Token request - code: {code}")
         
         async with httpx.AsyncClient(timeout=30.0) as client:
             token_response = await client.post(
@@ -155,9 +158,11 @@ async def oauth2_callback(request: Request, provider_or_realm: str):
                 f"Token exchange failed: {token_response.status_code} - "
                 f"{token_response.text}"
             )
+            logger.error(f"Keycloak token endpoint: {token_endpoint}")
+            logger.error(f"Request data sent: {token_request_data}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Failed to exchange authorization code for tokens",
+                detail=f"Failed to exchange authorization code for tokens - {token_response.text}",
             )
         
         tokens = token_response.json()

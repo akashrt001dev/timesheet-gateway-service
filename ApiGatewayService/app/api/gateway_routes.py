@@ -267,6 +267,23 @@ async def proxy_request(
             else:
                 logger.debug(f"Skipping null/empty header: {header_name}")
     
+    logger.debug(f"Forwarding headers: {list(forward_headers.keys())}")
+    
+    # Ensure essential headers are present
+    # Add default Content-Type if not provided (backends often expect this)
+    if "content-type" not in {k.lower() for k in forward_headers.keys()}:
+        if request.method.upper() in {"POST", "PUT", "PATCH"}:
+            forward_headers["Content-Type"] = "application/json"
+        else:
+            # For GET requests, add a default Content-Type
+            forward_headers["Content-Type"] = "application/json"
+    
+    # Ensure Accept header is present
+    if "accept" not in {k.lower() for k in forward_headers.keys()}:
+        forward_headers["Accept"] = "application/json"
+    
+    logger.debug(f"Final headers to forward: {dict(forward_headers)}")
+    
     # If token is provided (from cookie), add it as Authorization header
     # This ensures backend services receive the token for validation
     if token:

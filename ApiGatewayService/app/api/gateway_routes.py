@@ -261,7 +261,11 @@ async def proxy_request(
     forward_headers: Dict[str, str] = {}
     for header_name, header_value in request.headers.items():
         if header_name.lower() not in HOP_BY_HOP_HEADERS:
-            forward_headers[header_name] = header_value
+            # Skip null or empty header values to prevent backend null pointer exceptions
+            if header_value and str(header_value).strip():
+                forward_headers[header_name] = header_value
+            else:
+                logger.debug(f"Skipping null/empty header: {header_name}")
     
     # If token is provided (from cookie), add it as Authorization header
     # This ensures backend services receive the token for validation

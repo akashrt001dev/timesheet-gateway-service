@@ -222,6 +222,7 @@ async def proxy_request(
     upstream_path: str,
     request: Request,
     token: str = None,
+    service_name: str = None,
     timeout: float = HTTPX_TIMEOUT,
 ) -> Tuple[int, Dict[str, str], bytes]:
     """
@@ -233,6 +234,7 @@ async def proxy_request(
     - Request body forwarding
     - Header forwarding (excluding hop-by-hop headers)
     - Authorization header relay (TokenRelay)
+    - Tenant ID header injection (X-tenantID)
     - Response handling
     
     Args:
@@ -240,6 +242,7 @@ async def proxy_request(
         upstream_path: Path to forward (e.g., "/login")
         request: Incoming FastAPI request
         token: JWT token to forward as Authorization header (optional)
+        service_name: Name of target service for tenant ID injection (optional)
         timeout: Request timeout in seconds
         
     Returns:
@@ -265,6 +268,14 @@ async def proxy_request(
     if token:
         forward_headers["Authorization"] = f"Bearer {token}"
         logger.debug(f"Adding Authorization header from token for {upstream_path}")
+    
+    # Inject X-tenantID header for backend services
+    # Backend services require tenant ID to scope requests properly
+    settings = get_settings()
+    if service_name and service_name != "frontend":
+        tenant_id = settings.keycloak_realm
+        forward_headers["X-tenantID"] = tenant_id
+        logger.debug(f"Adding X-tenantID header: {tenant_id} for service: {service_name}")
     
     # Add correlation ID if available (from middleware)
     if "correlation_id" in request.scope:
@@ -539,6 +550,20 @@ async def gateway_route(request: Request, path: str = ""):
             extra={"path": full_path}
         )
         
+        # Determine service name for header injection
+        service_name = "frontend"
+        settings = get_settings()
+        if target_url == settings.user_management_service_url:
+            service_name = "user-management-service"
+        elif target_url == settings.contract_management_service_url:
+            service_name = "contract-management-service"
+        elif target_url == settings.entity_service_url:
+            service_name = "entity-service"
+        elif target_url == settings.timesheet_management_service_url:
+            service_name = "timesheet-management-service"
+        elif target_url == settings.notification_service_url:
+            service_name = "notification-service"
+        
         # Extract token for proxying to backend services
         proxy_token = None
         if user:  # user is authenticated
@@ -549,12 +574,13 @@ async def gateway_route(request: Request, path: str = ""):
             elif "access_token" in request.cookies:
                 proxy_token = request.cookies.get("access_token")
         
-        # Proxy request to target with token
+        # Proxy request to target with token and service name for tenant ID injection
         status_code, response_headers, response_body = await proxy_request(
             target_url=target_url,
             upstream_path=rewritten_path,
             request=request,
             token=proxy_token,
+            service_name=service_name,
         )
         
         # Return response

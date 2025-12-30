@@ -564,8 +564,9 @@ async def gateway_route(request: Request, path: str = ""):
         elif target_url == settings.notification_service_url:
             service_name = "notification-service"
         
-        # Extract token for proxying to backend services
+        # Extract token and user ID for proxying to backend services
         proxy_token = None
+        user_id = None
         if user:  # user is authenticated
             # Extract token from Authorization header or cookies
             auth_header = request.headers.get("Authorization")
@@ -573,6 +574,19 @@ async def gateway_route(request: Request, path: str = ""):
                 proxy_token = auth_header[7:]
             elif "access_token" in request.cookies:
                 proxy_token = request.cookies.get("access_token")
+            
+            # Extract user ID from Keycloak token claims (typically 'sub' claim)
+            if "claims" in user and user["claims"]:
+                claims = user["claims"]
+                # Try 'sub' first (standard OIDC subject/user ID)
+                user_id = claims.get("sub") or claims.get("preferred_username")
+                if user_id:
+                    logger.debug(f"Extracted user ID from token: {user_id}")
+        
+        # Inject user ID into path if needed (e.g., /user/null → /user/{userId})
+        if user_id and rewritten_path.endswith("/null"):
+            rewritten_path = rewritten_path.replace("/null", f"/{user_id}")
+            logger.info(f"Injected user ID into path: {rewritten_path}")
         
         # Proxy request to target with token and service name for tenant ID injection
         status_code, response_headers, response_body = await proxy_request(

@@ -126,6 +126,8 @@ async def oauth2_callback(request: Request, provider_or_realm: str):
             )
         
         logger.info(f"OAuth2 code received, exchanging for tokens...")
+        logger.info(f"  Authorization code: {code[:30]}..." if len(code) > 30 else f"  Authorization code: {code}")
+        logger.info(f"  State: {state}")
         
         # Exchange authorization code for tokens
         # POST to Keycloak token endpoint
@@ -142,10 +144,12 @@ async def oauth2_callback(request: Request, provider_or_realm: str):
             "redirect_uri": settings.keycloak_redirect_uri,
         }
         
-        logger.info(f"Exchanging code at token endpoint: {token_endpoint}")
-        logger.info(f"Token request - client_id: {settings.keycloak_client_id}")
-        logger.info(f"Token request - redirect_uri: {settings.keycloak_redirect_uri}")
-        logger.info(f"Token request - code: {code[:20]}..." if len(code) > 20 else f"Token request - code: {code}")
+        logger.info(f"Token request details:")
+        logger.info(f"  Endpoint: {token_endpoint}")
+        logger.info(f"  Client ID: {settings.keycloak_client_id}")
+        logger.info(f"  Client Secret: {'*' * len(settings.keycloak_client_secret)}")
+        logger.info(f"  Redirect URI: {settings.keycloak_redirect_uri}")
+        logger.info(f"  Grant Type: authorization_code")
         
         async with httpx.AsyncClient(timeout=30.0) as client:
             token_response = await client.post(
@@ -155,14 +159,17 @@ async def oauth2_callback(request: Request, provider_or_realm: str):
         
         if token_response.status_code != 200:
             logger.error(
-                f"Token exchange failed: {token_response.status_code} - "
-                f"{token_response.text}"
+                f"Token exchange failed: {token_response.status_code}"
             )
-            logger.error(f"Keycloak token endpoint: {token_endpoint}")
-            logger.error(f"Request data sent: {token_request_data}")
+            logger.error(f"Keycloak response: {token_response.text}")
+            logger.error(f"This typically means:")
+            logger.error(f"  1. Authorization code has expired (check timestamp)")
+            logger.error(f"  2. Authorization code already used (each code can only be used once)")
+            logger.error(f"  3. Redirect URI mismatch (must match exactly)")
+            logger.error(f"  4. Client credentials mismatch (client_id or client_secret)")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Failed to exchange authorization code for tokens - {token_response.text}",
+                detail=f"Token exchange failed: {token_response.json().get('error_description', token_response.text)}",
             )
         
         tokens = token_response.json()

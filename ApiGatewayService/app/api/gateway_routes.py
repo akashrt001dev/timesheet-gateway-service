@@ -108,11 +108,6 @@ class GatewayRouter:
         #   /user/(?<path>.*)  → /${path}   (strip /user)
         #   /roles/(?<path>.*) → /${path}   (strip /roles)
         self.backend_routes = {
-            # OAuth2 callback endpoint - forward to user management service
-            "/login/oauth2": (
-                settings.user_management_service_url,
-                "/login/oauth2"
-            ),
             # Service-specific prefixes (longest first for priority matching)
             "/user-management-service": (
                 settings.user_management_service_url,
@@ -495,14 +490,24 @@ async def gateway_route(request: Request, path: str = ""):
         # Determine routing
         router_instance = GatewayRouter(get_settings())
         route_info = router_instance.determine_route(full_path)
-        
         if not route_info:
             # Handle root path redirect to Flutter home
             if full_path == "/":
-                # logger.info("Redirecting / to /home")
-                # return RedirectResponse(url="/home", status_code=307)
-                logger.info("Redirecting / to /")
+                logger.info("Redirecting / to /home")
                 return RedirectResponse(url="/home", status_code=307)
+            
+            # If it's a public route but no backend route found, it should be handled by a dedicated endpoint
+            # (e.g., oauth2_router handles /login/oauth2/code/*)
+            # This should NOT happen if routers are correctly registered
+            if _is_public_route(full_path):
+                logger.warning(
+                    f"Public route {full_path} has no backend route configured. "
+                    "This should be handled by a dedicated endpoint."
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Route not configured for path: {full_path}",
+                )
             
             logger.warning(f"No route found for {full_path}")
             raise HTTPException(

@@ -7,6 +7,7 @@ The backend services handle authentication and authorization.
 import logging
 from urllib.parse import urlencode
 
+import httpx
 from fastapi import APIRouter, HTTPException, status, Request
 from fastapi.responses import RedirectResponse
 
@@ -85,43 +86,124 @@ async def oauth2_callback(request: Request, provider_or_realm: str):
     OAuth2 callback endpoint that receives authorization code from Keycloak.
     
     This endpoint is called by Keycloak after user login with authorization code.
-    The authorization code is forwarded to the backend service for token exchange.
+    It exchanges the authorization code for tokens directly (no forwarding).
+    
+    Keycloak Flow:
+    1. User clicks login → Redirected to Keycloak
+    2. User authenticates with Keycloak
+    3. Keycloak redirects back to this endpoint with authorization code
+    4. Gateway exchanges code for tokens (using Keycloak token endpoint)
+    5. Gateway returns tokens to client or redirects to home
+    
+    Query Parameters (provided by Keycloak):
+        code: Authorization code to exchange for tokens
+        state: State parameter for CSRF protection
+        session_state: Keycloak session state
     
     Args:
         request: FastAPI request with query parameters (code, state, session_state)
         provider_or_realm: Provider name or realm name (e.g., 'smmc-io-prod')
     
     Returns:
-        Response from backend service (typically redirects to home or sets tokens)
+        Redirect to home page with tokens in secure HTTP-only cookies
     """
+    print("aaaaaaaaaaaaaaaaaaaaaaaaaaa")
     settings = get_settings()
     
     logger.info(f"OAuth2 callback received for provider/realm: {provider_or_realm}")
-    logger.debug(f"Query params: {request.query_params}")
+    logger.debug(f"Query params: {dict(request.query_params)}")
     
-    # Forward the OAuth2 callback request to the user management service
-    # The backend service will exchange the code for tokens
     try:
-        from app.api.gateway_routes import proxy_request
+        # Get authorization code from query parameters
+        code = request.query_params.get("code")
+        state = request.query_params.get("state")
         
-        target_url = settings.user_management_service_url
-        callback_path = f"/login/oauth2/code/{provider_or_realm}"
+        if not code:
+            logger.error("OAuth2 callback: Missing authorization code")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing authorization code",
+            )
         
-        status_code, response_headers, response_body = await proxy_request(
-            target_url=target_url,
-            upstream_path=callback_path,
-            request=request,
+        logger.info(f"OAuth2 code received, exchanging for tokens...")
+        
+        # Exchange authorization code for tokens
+        # POST to Keycloak token endpoint
+        token_endpoint = (
+            f"{settings.keycloak_server_url}/realms/{settings.keycloak_realm}"
+            f"/protocol/openid-connect/token"
         )
         
-        logger.info(f"OAuth2 callback forwarded successfully, status: {status_code}")
+        token_request_data = {
+            "grant_type": "authorization_code",
+            "client_id": settings.keycloak_client_id,
+            "client_secret": settings.keycloak_client_secret,
+            "code": code,
+            "redirect_uri": settings.keycloak_redirect_uri,
+        }
         
-        from fastapi.responses import StreamingResponse
-        return StreamingResponse(
-            iter([response_body]),
-            status_code=status_code,
-            headers=response_headers,
-            media_type=response_headers.get("content-type", "application/octet-stream"),
+        logger.info(f"Exchanging code at token endpoint: {token_endpoint}")
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            token_response = await client.post(
+                token_endpoint,
+                data=token_request_data,
+            )
+        
+        if token_response.status_code != 200:
+            logger.error(
+                f"Token exchange failed: {token_response.status_code} - "
+                f"{token_response.text}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Failed to exchange authorization code for tokens",
+            )
+        
+        tokens = token_response.json()
+        logger.info(f"Token exchange successful, user authenticated")
+        
+        # Create response that redirects to home page
+        # In production, you might want to:
+        # 1. Store tokens in HTTP-only secure cookies
+        # 2. Create a session
+        # 3. Redirect to a specific page with tokens in URL fragment
+        
+        response = RedirectResponse(
+            url=settings.post_login_redirect_path,
+            status_code=302
         )
+        
+        # Store tokens in secure HTTP-only cookies
+        # access_token: short-lived, used for API requests
+        # refresh_token: long-lived, used to get new access tokens
+        if "access_token" in tokens:
+            response.set_cookie(
+                key="access_token",
+                value=tokens["access_token"],
+                httponly=True,
+                secure=True,  # Only send over HTTPS
+                samesite="lax",  # CSRF protection
+                max_age=tokens.get("expires_in", 3600),  # Token TTL
+            )
+            logger.info(f"Access token set in cookie (TTL: {tokens.get('expires_in')} seconds)")
+        
+        if "refresh_token" in tokens:
+            response.set_cookie(
+                key="refresh_token",
+                value=tokens["refresh_token"],
+                httponly=True,
+                secure=True,
+                samesite="lax",
+                max_age=tokens.get("refresh_expires_in", 86400 * 30),  # 30 days
+            )
+            logger.info("Refresh token set in cookie")
+        
+        logger.info(f"Redirecting to: {settings.post_login_redirect_path}")
+        return response
+        
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception(f"Error processing OAuth2 callback: {str(e)}")
         raise HTTPException(

@@ -365,9 +365,19 @@ async def _validate_token_if_required(request: Request, path: str) -> Optional[D
         logger.warning(f"Keycloak disabled but accessing protected route: {path}")
         return None
     
-    # Extract token from Authorization header
+    # Extract token from Authorization header OR cookies
     auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
+    token = None
+    
+    # Try Authorization header first (preferred method)
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+    # Fall back to access_token cookie
+    elif "access_token" in request.cookies:
+        token = request.cookies.get("access_token")
+        logger.debug(f"Using access_token from cookie for {path}")
+    
+    if not token:
         logger.warning(f"Missing authorization token for {path}, redirecting to Keycloak login")
         
         # Redirect to Keycloak login
@@ -401,6 +411,7 @@ async def _validate_token_if_required(request: Request, path: str) -> Optional[D
             }
         )
     
+    # Validate token
     token = auth_header[7:]
     
     # Try to validate with each realm's validator

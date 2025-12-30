@@ -189,8 +189,14 @@ class GatewayRouter:
         for prefix in sorted(self.frontend_routes.keys(), key=len, reverse=True):
             if path.startswith(prefix):
                 target_url = self.frontend_routes[prefix]
-                # Frontend: keep original path
-                return target_url, path
+                # Frontend: strip the prefix from path (e.g., /app/dashboard → /dashboard)
+                if path == prefix:
+                    rewritten = "/"
+                else:
+                    rewritten = path[len(prefix):]
+                    if not rewritten.startswith("/"):
+                        rewritten = "/" + rewritten
+                return target_url, rewritten
         
         # Check backend routes (longer prefixes first to match most specific)
         for prefix in sorted(self.backend_routes.keys(), key=len, reverse=True):

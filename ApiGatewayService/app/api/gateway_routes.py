@@ -270,6 +270,9 @@ async def proxy_request(
     if token and "Authorization" not in forward_headers:
         forward_headers["Authorization"] = f"Bearer {token}"
         logger.debug(f"Adding Authorization header from token for {upstream_path}")
+
+    if request.url.path.startswith("/entity-service/entityID"):
+        forward_headers.pop("Authorization", None)
     
     # Add correlation ID if available (from middleware)
     if "correlation_id" in request.scope:
@@ -393,7 +396,7 @@ async def _validate_token_if_required(request: Request, path: str) -> Optional[D
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header[7:]
     # Fall back to access_token cookie
-    elif "access_token" in request.cookies:
+    elif "access_token" in request.cookies and not _is_public_route(path):
         token = request.cookies.get("access_token")
         logger.debug(f"Using access_token from cookie for {path}")
     

@@ -104,6 +104,13 @@ async def logout(request: Request):
         content={"redirectURL": logout_url}
     )
     response.headers["Location"] = logout_url
+    
+    # Clear all authentication cookies
+    response.delete_cookie("access_token", path="/", domain=None)
+    response.delete_cookie("id_token", path="/", domain=None)
+    response.delete_cookie("refresh_token", path="/", domain=None)
+    logger.info("All authentication cookies cleared")
+    
     return response
 
 
@@ -157,6 +164,13 @@ async def logout_no_prefix(request: Request):
         content={"redirectURL": logout_url}
     )
     response.headers["Location"] = logout_url
+    
+    # Clear all authentication cookies
+    response.delete_cookie("access_token", path="/", domain=None)
+    response.delete_cookie("id_token", path="/", domain=None)
+    response.delete_cookie("refresh_token", path="/", domain=None)
+    logger.info("All authentication cookies cleared")
+    
     return response
 
 

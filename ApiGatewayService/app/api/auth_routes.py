@@ -19,6 +19,9 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 # Create a separate router for OAuth2 callback (no /auth prefix)
 oauth2_router = APIRouter(tags=["OAuth2"])
 
+# Create a separate router for logout (no /auth prefix for /logout endpoint)
+logout_router = APIRouter(tags=["Authentication"])
+
 
 @router.get("/login", name="Keycloak Login")
 async def login():
@@ -80,6 +83,37 @@ async def logout():
     logger.info(f"Redirecting to Keycloak logout: {logout_endpoint}")
     
     return RedirectResponse(url=logout_url, status_code=302)
+
+
+# Logout route without /auth prefix (accessible at /logout)
+@logout_router.api_route("/logout", methods=["GET", "PUT", "POST"], name="Logout")
+async def logout_no_prefix():
+    """
+    Logout endpoint - redirect to Keycloak logout and then to /home.
+    
+    This is accessible at /logout (without /auth prefix).
+    Supports GET, PUT, and POST methods.
+    """
+    settings = get_settings()
+    
+    if not settings.keycloak_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="OAuth2 is not enabled"
+        )
+    
+    # Build Keycloak logout URL
+    logout_endpoint = f"{settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/logout"
+    
+    params = {
+        "redirect_uri": settings.post_logout_redirect_path,
+    }
+    
+    logout_url = f"{logout_endpoint}?{urlencode(params)}"
+    logger.info(f"Logging out user and redirecting to: {logout_url}")
+    
+    return RedirectResponse(url=logout_url, status_code=302)
+
 
 @oauth2_router.get("/login/oauth2/code/{provider_or_realm}", name="OAuth2 Callback")
 async def oauth2_callback(request: Request, provider_or_realm: str):

@@ -82,20 +82,19 @@ async def logout(request: Request):
     
     # Build Keycloak logout URL
     logout_endpoint = f"{settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/logout"
-    params = {}
+    
+    # Build query params manually to avoid encoding post_logout_redirect_uri
+    query_params = []
     
     # Get access_token from cookies for id_token_hint
     token = request.cookies.get("access_token", "")
-    # Add id_token_hint if token available
     if token:
-        params["id_token_hint"] = token
-    params["client_id"] = settings.keycloak_client_id
-    params["post_logout_redirect_uri"] = settings.post_logout_redirect_uri
+        query_params.append(f"id_token_hint={token}")
     
+    query_params.append(f"client_id={settings.keycloak_client_id}")
+    query_params.append(f"post_logout_redirect_uri={settings.post_logout_redirect_uri}")
     
-    
-    
-    logout_url = f"{logout_endpoint}?{urlencode(params)}"
+    logout_url = f"{logout_endpoint}?{'&'.join(query_params)}"
     logger.info(f"Redirecting to Keycloak logout: {logout_endpoint}")
     logger.info(f"Post-logout redirect URI: {settings.post_logout_redirect_uri}")
     
@@ -136,18 +135,19 @@ async def logout_no_prefix(request: Request):
     
     # Build Keycloak logout URL
     logout_endpoint = f"{settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/logout"
-    params = {}
+    
+    # Build query params manually to avoid encoding post_logout_redirect_uri
+    query_params = []
+    
     # Get access_token from cookies for id_token_hint
     token = request.cookies.get("access_token", "")
-    
     if token:
-        params["id_token_hint"] = token
-    params["client_id"] = settings.keycloak_client_id
-    params["post_logout_redirect_uri"] = settings.post_logout_redirect_uri
+        query_params.append(f"id_token_hint={token}")
     
-   
+    query_params.append(f"client_id={settings.keycloak_client_id}")
+    query_params.append(f"post_logout_redirect_uri={settings.post_logout_redirect_uri}")
     
-    logout_url = f"{logout_endpoint}?{urlencode(params)}"
+    logout_url = f"{logout_endpoint}?{'&'.join(query_params)}"
     logger.info(f"Logging out user and redirecting to: {logout_url}")
     logger.info(f"Post-logout redirect URI: {settings.post_logout_redirect_uri}")
     

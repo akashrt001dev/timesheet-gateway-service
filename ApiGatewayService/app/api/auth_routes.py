@@ -57,11 +57,15 @@ async def login():
 
 
 @router.api_route("/logout", methods=["GET", "PUT", "POST"], name="Keycloak Logout")
-async def logout():
+async def logout(request: Request):
     """
-    Redirect user to Keycloak logout page.
+    Redirect user to Keycloak logout page (OIDC RP-Initiated Logout).
     
-    After logout, user is redirected to the post-logout redirect path.
+    Extracts id_token from cookies and builds logout request with:
+    - id_token_hint: The ID token for token hint
+    - client_id: The Keycloak client ID
+    - post_logout_redirect_uri: Where to redirect after logout
+    
     Supports GET, PUT, and POST methods.
     
     Returns:
@@ -79,12 +83,21 @@ async def logout():
     # Build Keycloak logout URL
     logout_endpoint = f"{settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/logout"
     
+    # Get id_token from cookies if available
+    id_token = request.cookies.get("id_token", "")
+    
     params = {
-        "redirect_uri": settings.post_logout_redirect_path,
+        "client_id": settings.keycloak_client_id,
+        "post_logout_redirect_uri": settings.post_logout_redirect_uri,
     }
+    
+    # Add id_token_hint if available
+    if id_token:
+        params["id_token_hint"] = id_token
     
     logout_url = f"{logout_endpoint}?{urlencode(params)}"
     logger.info(f"Redirecting to Keycloak logout: {logout_endpoint}")
+    logger.info(f"Post-logout redirect URI: {settings.post_logout_redirect_uri}")
     
     # Return 202 Accepted with JSON body containing redirectURL (matches Java Gateway)
     response = JSONResponse(
@@ -97,12 +110,17 @@ async def logout():
 
 # Logout route without /auth prefix (accessible at /logout)
 @logout_router.api_route("/logout", methods=["GET", "PUT", "POST"], name="Logout")
-async def logout_no_prefix():
+async def logout_no_prefix(request: Request):
     """
-    Logout endpoint - matches Java Gateway behavior.
+    Logout endpoint - matches Java Gateway behavior (RP-Initiated Logout).
     
     This is accessible at /logout (without /auth prefix).
     Supports GET, PUT, and POST methods.
+    
+    Extracts id_token from cookies and builds logout request with:
+    - id_token_hint: The ID token for token hint
+    - client_id: The Keycloak client ID
+    - post_logout_redirect_uri: Where to redirect after logout
     
     Returns:
         202 Accepted with JSON response containing redirectURL
@@ -119,12 +137,21 @@ async def logout_no_prefix():
     # Build Keycloak logout URL
     logout_endpoint = f"{settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/logout"
     
+    # Get id_token from cookies if available
+    id_token = request.cookies.get("id_token", "")
+    
     params = {
-        "redirect_uri": settings.post_logout_redirect_path,
+        "client_id": settings.keycloak_client_id,
+        "post_logout_redirect_uri": settings.post_logout_redirect_uri,
     }
+    
+    # Add id_token_hint if available
+    if id_token:
+        params["id_token_hint"] = id_token
     
     logout_url = f"{logout_endpoint}?{urlencode(params)}"
     logger.info(f"Logging out user and redirecting to: {logout_url}")
+    logger.info(f"Post-logout redirect URI: {settings.post_logout_redirect_uri}")
     
     # Return 202 Accepted with JSON body containing redirectURL (matches Java Gateway)
     response = JSONResponse(

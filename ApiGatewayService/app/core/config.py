@@ -138,6 +138,7 @@ class Settings(BaseSettings):
     keycloak_redirect_uri: str = Field(default="https://localhost/auth/callback", alias="KEYCLOAK_REDIRECT_URI")
     post_login_redirect_path: str = Field(default="/home/", alias="POST_LOGIN_REDIRECT_PATH")
     post_logout_redirect_path: str = Field(default="/home", alias="POST_LOGOUT_REDIRECT_PATH")
+    post_logout_redirect_uri: str = Field(default="https://localhost", alias="POST_LOGOUT_REDIRECT_URI")
 
     # ========================================================================
     # VALIDATORS

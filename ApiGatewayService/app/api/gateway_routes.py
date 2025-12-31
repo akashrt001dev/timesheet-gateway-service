@@ -135,7 +135,7 @@ class GatewayRouter:
             ),
             "/feedback-management-service": (
                 settings.feedback_management_service_url,
-                "/feedback-management-service"
+                ""  # Don't strip prefix - send full path
             ),
             # Direct API prefixes (backward compatibility)
             "/auth": (

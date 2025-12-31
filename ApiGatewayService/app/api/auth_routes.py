@@ -53,12 +53,13 @@ async def login():
     return RedirectResponse(url=login_url, status_code=302)
 
 
-@router.get("/logout", name="Keycloak Logout")
+@router.api_route("/logout", methods=["GET", "PUT", "POST"], name="Keycloak Logout")
 async def logout():
     """
     Redirect user to Keycloak logout page.
     
     After logout, user is redirected to the post-logout redirect path.
+    Supports GET, PUT, and POST methods.
     """
     settings = get_settings()
     

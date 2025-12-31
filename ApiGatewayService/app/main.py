@@ -22,10 +22,9 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-from urllib.parse import urlencode
 
 from app.core.config import get_settings, configure_logging
 from app.api import gateway_routes
@@ -136,30 +135,6 @@ def create_app() -> FastAPI:
             "service": settings.app_name,
             "version": "1.0.0",
         }
-    
-    # Logout endpoint - redirect to Keycloak logout then to /home
-    @app.get("/logout", tags=["Authentication"])
-    async def logout():
-        """
-        Logout endpoint - redirects to Keycloak logout and then to /home.
-        """
-        settings = get_settings()
-        
-        if not settings.keycloak_enabled:
-            # If Keycloak disabled, just redirect to home
-            return RedirectResponse(url="/home", status_code=302)
-        
-        # Build Keycloak logout URL with redirect to /home
-        logout_endpoint = f"{settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/logout"
-        
-        params = {
-            "redirect_uri": f"{settings.server_host.rstrip('/')}/home",
-        }
-        
-        logout_url = f"{logout_endpoint}?{urlencode(params)}"
-        logger.info(f"Logging out user and redirecting to: {logout_url}")
-        
-        return RedirectResponse(url=logout_url, status_code=302)
     
     # Include authentication routes (Keycloak redirects) - MUST be before gateway catch-all
     if settings.keycloak_enabled:

@@ -61,8 +61,8 @@ async def logout(request: Request):
     """
     Redirect user to Keycloak logout page (OIDC RP-Initiated Logout).
     
-    Extracts id_token from cookies and builds logout request with:
-    - id_token_hint: The ID token for token hint
+    Extracts access_token from cookies and builds logout request with:
+    - id_token_hint: The access token for token hint
     - client_id: The Keycloak client ID
     - post_logout_redirect_uri: Where to redirect after logout
     
@@ -83,8 +83,8 @@ async def logout(request: Request):
     # Build Keycloak logout URL
     logout_endpoint = f"{settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/logout"
     
-    # Get id_token from cookies if available
-    id_token = request.cookies.get("id_token", "")
+    # Get access_token from cookies if available
+    access_token = request.cookies.get("access_token", "")
     
     params = {
         "client_id": settings.keycloak_client_id,
@@ -92,8 +92,8 @@ async def logout(request: Request):
     }
     
     # Add id_token_hint if available
-    if id_token:
-        params["id_token_hint"] = id_token
+    if access_token:
+        params["id_token_hint"] = access_token
     
     logout_url = f"{logout_endpoint}?{urlencode(params)}"
     logger.info(f"Redirecting to Keycloak logout: {logout_endpoint}")
@@ -117,8 +117,8 @@ async def logout_no_prefix(request: Request):
     This is accessible at /logout (without /auth prefix).
     Supports GET, PUT, and POST methods.
     
-    Extracts id_token from cookies and builds logout request with:
-    - id_token_hint: The ID token for token hint
+    Extracts access_token from cookies and builds logout request with:
+    - id_token_hint: The access token for token hint
     - client_id: The Keycloak client ID
     - post_logout_redirect_uri: Where to redirect after logout
     
@@ -137,8 +137,8 @@ async def logout_no_prefix(request: Request):
     # Build Keycloak logout URL
     logout_endpoint = f"{settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/logout"
     
-    # Get id_token from cookies if available
-    id_token = request.cookies.get("id_token", "")
+    # Get access_token from cookies if available
+    access_token = request.cookies.get("access_token", "")
     
     params = {
         "client_id": settings.keycloak_client_id,
@@ -146,8 +146,8 @@ async def logout_no_prefix(request: Request):
     }
     
     # Add id_token_hint if available
-    if id_token:
-        params["id_token_hint"] = id_token
+    if access_token:
+        params["id_token_hint"] = access_token
     
     logout_url = f"{logout_endpoint}?{urlencode(params)}"
     logger.info(f"Logging out user and redirecting to: {logout_url}")

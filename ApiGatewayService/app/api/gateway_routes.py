@@ -133,6 +133,10 @@ class GatewayRouter:
                 settings.notification_service_url,
                 "/notification-service"
             ),
+            "/feedback-management-service": (
+                settings.feedback_management_service_url,
+                "/feedback-management-service"
+            ),
             # Direct API prefixes (backward compatibility)
             "/auth": (
                 settings.user_management_service_url,
@@ -169,6 +173,14 @@ class GatewayRouter:
             "/emailtemplate": (
                 settings.notification_service_url,
                 "/emailtemplate"
+            ),
+            "/ticket": (
+                settings.feedback_management_service_url,
+                "/ticket"
+            ),
+            "/feedback": (
+                settings.feedback_management_service_url,
+                "/feedback"
             ),
         }
 

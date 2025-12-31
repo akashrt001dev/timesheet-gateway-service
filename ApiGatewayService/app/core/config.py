@@ -87,6 +87,11 @@ class Settings(BaseSettings):
         alias="NOTIFICATION_SERVICE_URL",
         description="Notification Service (emailtemplate)"
     )
+    feedback_management_service_url: str = Field(
+        default="http://localhost:8007",
+        alias="FEEDBACK_MANAGEMENT_SERVICE_URL",
+        description="Feedback Management Service (ticket, feedback)"
+    )
 
     # ========================================================================
     # CORS CONFIGURATION

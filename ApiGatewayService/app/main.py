@@ -21,10 +21,11 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+from urllib.parse import urlencode
 
 from app.core.config import get_settings, configure_logging
 from app.api import gateway_routes
@@ -136,12 +137,37 @@ def create_app() -> FastAPI:
             "version": "1.0.0",
         }
     
+    # Logout endpoint (public, no auth required)
+    @app.get("/logout", tags=["Authentication"], name="Logout")
+    async def logout_endpoint():
+        """
+        Redirect user to Keycloak logout page.
+        
+        After logout, user is redirected to the post-logout redirect path.
+        """
+        if not settings.keycloak_enabled:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="OAuth2 is not enabled"
+            )
+        
+        # Build Keycloak logout URL
+        logout_endpoint_url = f"{settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/logout"
+        
+        params = {
+            "redirect_uri": settings.post_logout_redirect_path,
+        }
+        
+        logout_url = f"{logout_endpoint_url}?{urlencode(params)}"
+        logger.info(f"Redirecting to Keycloak logout: {logout_endpoint_url}")
+        
+        return RedirectResponse(url=logout_url, status_code=302)
+    
     # Include authentication routes (Keycloak redirects) - MUST be before gateway catch-all
     if settings.keycloak_enabled:
         app.include_router(auth_routes.router)
         app.include_router(auth_routes.oauth2_router)
-        app.include_router(auth_routes.logout_router)
-        logger.info("Authentication routes registered (/auth/login, /auth/logout, /logout, /login/oauth2/code/*)")
+        logger.info("Authentication routes registered (/auth/login, /auth/logout, /login/oauth2/code/*)")
     
     # Include gateway routing (catch-all) - LAST, as fallback for all other routes
     app.include_router(gateway_routes.router)

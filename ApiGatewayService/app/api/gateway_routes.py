@@ -62,7 +62,6 @@ HOP_BY_HOP_HEADERS = {
 # Public routes (no authentication required)
 PUBLIC_ROUTES = {
     "/login",
-    "/logout",
     "/oauth2",
     "/login/oauth2",  # OAuth2 callback endpoint and all OAuth2 callback paths
     "/",

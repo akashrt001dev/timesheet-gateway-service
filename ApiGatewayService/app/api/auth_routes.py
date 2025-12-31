@@ -82,18 +82,18 @@ async def logout(request: Request):
     
     # Build Keycloak logout URL
     logout_endpoint = f"{settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/logout"
+    params = {}
     
     # Get access_token from cookies for id_token_hint
     token = request.cookies.get("access_token", "")
-    
-    params = {
-        "client_id": settings.keycloak_client_id,
-        "post_logout_redirect_uri": settings.post_logout_redirect_uri,
-    }
-    
     # Add id_token_hint if token available
     if token:
         params["id_token_hint"] = token
+    params["client_id"] = settings.keycloak_client_id
+    params["post_logout_redirect_uri"] = settings.post_logout_redirect_uri
+    
+    
+    
     
     logout_url = f"{logout_endpoint}?{urlencode(params)}"
     logger.info(f"Redirecting to Keycloak logout: {logout_endpoint}")
@@ -136,18 +136,16 @@ async def logout_no_prefix(request: Request):
     
     # Build Keycloak logout URL
     logout_endpoint = f"{settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/logout"
-    
+    params = {}
     # Get access_token from cookies for id_token_hint
     token = request.cookies.get("access_token", "")
     
-    params = {
-        "client_id": settings.keycloak_client_id,
-        "post_logout_redirect_uri": settings.post_logout_redirect_uri,
-    }
-    
-    # Add id_token_hint if token available
     if token:
         params["id_token_hint"] = token
+    params["client_id"] = settings.keycloak_client_id
+    params["post_logout_redirect_uri"] = settings.post_logout_redirect_uri
+    
+   
     
     logout_url = f"{logout_endpoint}?{urlencode(params)}"
     logger.info(f"Logging out user and redirecting to: {logout_url}")

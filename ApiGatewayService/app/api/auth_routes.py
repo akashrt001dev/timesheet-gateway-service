@@ -19,6 +19,9 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 # Create a separate router for OAuth2 callback (no /auth prefix)
 oauth2_router = APIRouter(tags=["OAuth2"])
 
+# Create a separate router for logout (no /auth prefix for backward compatibility)
+logout_router = APIRouter(tags=["Authentication"])
+
 
 @router.get("/login", name="Keycloak Login")
 async def login():
@@ -216,3 +219,33 @@ async def oauth2_callback(request: Request, provider_or_realm: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="OAuth2 callback processing failed",
         )
+
+
+# Logout route without /auth prefix (for backward compatibility)
+@logout_router.get("/logout", name="Logout (No Prefix)")
+async def logout_no_prefix():
+    """
+    Redirect user to Keycloak logout page (accessible at /logout).
+    
+    This is the same as /auth/logout but without the /auth prefix
+    for backward compatibility.
+    """
+    settings = get_settings()
+    
+    if not settings.keycloak_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="OAuth2 is not enabled"
+        )
+    
+    # Build Keycloak logout URL
+    logout_endpoint = f"{settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/logout"
+    
+    params = {
+        "redirect_uri": settings.post_logout_redirect_path,
+    }
+    
+    logout_url = f"{logout_endpoint}?{urlencode(params)}"
+    logger.info(f"Redirecting to Keycloak logout: {logout_endpoint}")
+    
+    return RedirectResponse(url=logout_url, status_code=302)

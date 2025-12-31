@@ -140,7 +140,8 @@ def create_app() -> FastAPI:
     if settings.keycloak_enabled:
         app.include_router(auth_routes.router)
         app.include_router(auth_routes.oauth2_router)
-        logger.info("Authentication routes registered (/auth/login, /auth/logout, /login/oauth2/code/*)")
+        app.include_router(auth_routes.logout_router)
+        logger.info("Authentication routes registered (/auth/login, /auth/logout, /logout, /login/oauth2/code/*)")
     
     # Include gateway routing (catch-all) - LAST, as fallback for all other routes
     app.include_router(gateway_routes.router)

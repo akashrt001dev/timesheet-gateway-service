@@ -86,10 +86,10 @@ async def logout(request: Request):
     # Build query params manually to avoid encoding post_logout_redirect_uri
     query_params = []
     
-    # Get access_token from cookies for id_token_hint
-    token = request.cookies.get("access_token", "")
-    if token:
-        query_params.append(f"id_token_hint={token}")
+    # Get id_token from cookies for id_token_hint (the proper token for logout)
+    id_token = request.cookies.get("id_token", "")
+    if id_token:
+        query_params.append(f"id_token_hint={id_token}")
     
     query_params.append(f"client_id={settings.keycloak_client_id}")
     query_params.append(f"post_logout_redirect_uri={settings.post_logout_redirect_uri}")
@@ -139,10 +139,10 @@ async def logout_no_prefix(request: Request):
     # Build query params manually to avoid encoding post_logout_redirect_uri
     query_params = []
     
-    # Get access_token from cookies for id_token_hint
-    token = request.cookies.get("access_token", "")
-    if token:
-        query_params.append(f"id_token_hint={token}")
+    # Get id_token from cookies for id_token_hint (the proper token for logout)
+    id_token = request.cookies.get("id_token", "")
+    if id_token:
+        query_params.append(f"id_token_hint={id_token}")
     
     query_params.append(f"client_id={settings.keycloak_client_id}")
     query_params.append(f"post_logout_redirect_uri={settings.post_logout_redirect_uri}")
@@ -262,6 +262,7 @@ async def oauth2_callback(request: Request, provider_or_realm: str):
         
         # Store tokens in secure HTTP-only cookies
         # access_token: short-lived, used for API requests
+        # id_token: used for logout (id_token_hint parameter)
         # refresh_token: long-lived, used to get new access tokens
         if "access_token" in tokens:
             response.set_cookie(
@@ -273,6 +274,17 @@ async def oauth2_callback(request: Request, provider_or_realm: str):
                 max_age=tokens.get("expires_in", 3600),  # Token TTL
             )
             logger.info(f"Access token set in cookie (TTL: {tokens.get('expires_in')} seconds)")
+        
+        if "id_token" in tokens:
+            response.set_cookie(
+                key="id_token",
+                value=tokens["id_token"],
+                httponly=True,
+                secure=True,
+                samesite="lax",
+                max_age=tokens.get("expires_in", 3600),  # Same TTL as access token
+            )
+            logger.info("ID token set in cookie (for logout)")
         
         if "refresh_token" in tokens:
             response.set_cookie(

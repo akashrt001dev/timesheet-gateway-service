@@ -9,7 +9,7 @@ from urllib.parse import urlencode
 
 import httpx
 from fastapi import APIRouter, HTTPException, status, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 
 from app.core.config import get_settings
 
@@ -63,6 +63,10 @@ async def logout():
     
     After logout, user is redirected to the post-logout redirect path.
     Supports GET, PUT, and POST methods.
+    
+    Returns:
+        202 Accepted with JSON response containing redirectURL
+        (matches Java Spring Gateway response format)
     """
     settings = get_settings()
     
@@ -82,17 +86,27 @@ async def logout():
     logout_url = f"{logout_endpoint}?{urlencode(params)}"
     logger.info(f"Redirecting to Keycloak logout: {logout_endpoint}")
     
-    return RedirectResponse(url=logout_url, status_code=302)
+    # Return 202 Accepted with JSON body containing redirectURL (matches Java Gateway)
+    response = JSONResponse(
+        status_code=202,
+        content={"redirectURL": logout_url}
+    )
+    response.headers["Location"] = logout_url
+    return response
 
 
 # Logout route without /auth prefix (accessible at /logout)
 @logout_router.api_route("/logout", methods=["GET", "PUT", "POST"], name="Logout")
 async def logout_no_prefix():
     """
-    Logout endpoint - redirect to Keycloak logout and then to /home.
+    Logout endpoint - matches Java Gateway behavior.
     
     This is accessible at /logout (without /auth prefix).
     Supports GET, PUT, and POST methods.
+    
+    Returns:
+        202 Accepted with JSON response containing redirectURL
+        (matches Java Spring Gateway response format)
     """
     settings = get_settings()
     
@@ -112,7 +126,13 @@ async def logout_no_prefix():
     logout_url = f"{logout_endpoint}?{urlencode(params)}"
     logger.info(f"Logging out user and redirecting to: {logout_url}")
     
-    return RedirectResponse(url=logout_url, status_code=302)
+    # Return 202 Accepted with JSON body containing redirectURL (matches Java Gateway)
+    response = JSONResponse(
+        status_code=202,
+        content={"redirectURL": logout_url}
+    )
+    response.headers["Location"] = logout_url
+    return response
 
 
 @oauth2_router.get("/login/oauth2/code/{provider_or_realm}", name="OAuth2 Callback")

@@ -526,6 +526,7 @@ async def gateway_route(request: Request, path: str = ""):
       - Returns 401 for missing/invalid tokens on protected routes
       - Public routes (/login, /oauth2, /, /home, /app, /docs) bypass auth
       - TokenRelay: Authorization header forwarded to backend
+      - OPTIONS (preflight) handled by CORSPreflightMiddleware
     
     Args:
         request: Incoming HTTP request
@@ -537,9 +538,10 @@ async def gateway_route(request: Request, path: str = ""):
     # Normalize path
     full_path = f"/{path}" if path else "/"
     
-    # Handle CORS preflight requests (OPTIONS) - bypass authentication
+    # OPTIONS requests are handled by CORSPreflightMiddleware
+    # This route should not receive OPTIONS requests
     if request.method == "OPTIONS":
-        logger.debug(f"CORS preflight request: {full_path}")
+        logger.warning(f"OPTIONS request reached gateway handler (should be caught by CORS middleware): {full_path}")
         return StreamingResponse(
             content=iter([]),
             status_code=200,

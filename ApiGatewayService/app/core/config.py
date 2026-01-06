@@ -151,25 +151,8 @@ class Settings(BaseSettings):
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, v):
-        """
-        Parse CORS origins from various formats to list.
-        
-        Automatically includes Keycloak server URL if Keycloak is enabled.
-        
-        Supported formats:
-        - "*" (wildcard, allow all origins)
-        - "origin1,origin2" (comma-separated)
-        - ["origin1", "origin2"] (JSON array)
-        - "["origin1", "origin2"]" (JSON array string)
-        """
-        origins = cls._parse_list_field(v)
-        
-        # If "*" is in origins, return as-is
-        if "*" in origins:
-            return origins
-        
-        # Otherwise, ensure it's a proper list and return
-        return origins if isinstance(origins, list) else [origins]
+        """Parse CORS origins from various formats to list"""
+        return cls._parse_list_field(v)
 
     @field_validator("cors_methods", mode="before")
     @classmethod

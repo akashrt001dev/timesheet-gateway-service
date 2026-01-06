@@ -9,9 +9,9 @@ KEY FEATURES:
 - Frontend routing to React/Flutter UIs (no token validation)
 - Backend service routing with automatic path rewriting
 - TokenRelay: Forward all headers including Authorization
-- OAuth2/Keycloak integration with proper CORS handling
-- CORS preflight (OPTIONS) handled locally without proxying to backends
+- No gateway-level token validation (backend services handle it)
 - All HTTP methods supported
+- Proper CORS handling
 - Request correlation IDs for tracing
 
 RUNS WITH ONE COMMAND:
@@ -27,13 +27,6 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from app.core.config import get_settings, configure_logging
-from app.core.cors import get_cors_config
-from app.filters.cors_middleware import (
-    CORSPreflightMiddleware,
-    CORSResponseMiddleware,
-    AuthorizationHeaderMiddleware,
-    ForwardedHeadersMiddleware,
-)
 from app.api import gateway_routes
 from app.api import auth_routes
 
@@ -62,7 +55,6 @@ async def lifespan(app: FastAPI):
     if settings.keycloak_enabled:
         logger.info(f"Keycloak Login: {settings.keycloak_server_url}/realms/{settings.keycloak_realm}/protocol/openid-connect/auth")
         logger.info(f"Keycloak Realm: {settings.keycloak_realm}")
-        logger.info(f"CORS: Keycloak server ({settings.keycloak_server_url}) added to allowed origins")
     
     yield
     
@@ -74,21 +66,12 @@ def create_app() -> FastAPI:
     """
     Create and configure FastAPI application.
     
-    Middleware stack (order matters):
-    1. CORSPreflightMiddleware - Handle OPTIONS locally (must be early)
-    2. ForwardedHeadersMiddleware - Add forwarded headers for reverse proxy
-    3. AuthorizationHeaderMiddleware - Token relay from cookies to Authorization header
-    4. CORSResponseMiddleware - Add CORS headers to all responses
-    5. Global CORSMiddleware - FastAPI built-in CORS handling
-    6. Business logic (routes)
-    
     Returns:
         Configured FastAPI application instance
     """
     global app_instance
     
     settings = get_settings()
-    cors_config = get_cors_config()
     
     # Create application
     app = FastAPI(
@@ -104,39 +87,14 @@ def create_app() -> FastAPI:
     # Configure logging
     configure_logging(settings.log_level)
     
-    # Add custom middleware stack (order matters)
-    # These must be added BEFORE the global CORSMiddleware
-    
-    # 1. Forwarded headers middleware (for reverse proxy support)
-    app.add_middleware(ForwardedHeadersMiddleware)
-    logger.info("Registered ForwardedHeadersMiddleware for reverse proxy headers (X-Forwarded-*)")
-    
-    # 2. CORS response headers middleware
-    app.add_middleware(CORSResponseMiddleware)
-    logger.info("Registered CORSResponseMiddleware to add CORS headers to responses")
-    
-    # 3. Authorization header middleware (token relay)
-    app.add_middleware(AuthorizationHeaderMiddleware)
-    logger.info("Registered AuthorizationHeaderMiddleware for token relay")
-    
-    # 4. CORS preflight middleware (handles OPTIONS without proxying)
-    app.add_middleware(CORSPreflightMiddleware)
-    logger.info("Registered CORSPreflightMiddleware for OPTIONS preflight handling")
-    
-    # 5. Global CORS middleware (must be after custom middleware)
+    # Add CORS middleware (must be before other middleware)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=cors_config.origins,
-        allow_credentials=cors_config.allow_credentials,
-        allow_methods=cors_config.methods,
-        allow_headers=cors_config.allow_headers,
-        expose_headers=cors_config.expose_headers,
-        max_age=cors_config.max_age,
+        allow_origins=settings.cors_origins,
+        allow_credentials=settings.cors_credentials,
+        allow_methods=settings.cors_methods,
+        allow_headers=settings.cors_headers,
     )
-    logger.info(f"Registered CORSMiddleware with {len(cors_config.origins)} allowed origins")
-    logger.info(f"CORS allowed origins: {', '.join(cors_config.origins)}")
-    logger.info(f"CORS credentials: {cors_config.allow_credentials}")
-    logger.info(f"CORS max_age: {cors_config.max_age}s (preflight cache)")
     
     # Exception handlers
     @app.exception_handler(HTTPException)

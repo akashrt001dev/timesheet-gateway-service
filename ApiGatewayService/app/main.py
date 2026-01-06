@@ -87,17 +87,13 @@ def create_app() -> FastAPI:
     # Configure logging
     configure_logging(settings.log_level)
     
-    # Add CORS middleware (MUST be added FIRST in the middleware stack)
-    # This handles OPTIONS preflight requests at the gateway level before any auth checks
-    # OPTIONS requests receive 200 OK with CORS headers, bypassing all downstream processing
+    # Add CORS middleware (must be before other middleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=settings.cors_credentials,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],
-        allow_headers=["*"],
-        allow_origin_regex=r".*" if "*" in settings.cors_origins else None,
-        max_age=3600,
+        allow_methods=settings.cors_methods,
+        allow_headers=settings.cors_headers,
     )
     
     # Exception handlers

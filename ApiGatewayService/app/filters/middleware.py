@@ -40,16 +40,9 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         method = request.method
 
-        # ====================================================================
-        # SKIP AUTHENTICATION FOR CORS PREFLIGHT (OPTIONS) REQUESTS
-        # ====================================================================
-        # OPTIONS requests are CORS preflight requests sent by the browser
-        # to check if the actual request is allowed. These must NEVER be
-        # authenticated or forwarded to backend services. The gateway handles
-        # them immediately at the route level.
-        # ====================================================================
+        # Allow OPTIONS requests (CORS preflight)
         if method == "OPTIONS":
-            logger.debug(f"Skipping auth check for CORS preflight: {method} {path}")
+            logger.debug(f"CORS preflight request: {method} {path}")
             return await call_next(request)
 
         # Check if route requires authentication
@@ -165,34 +158,29 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         request_id = str(uuid4())
         correlation_id = request.scope.get("correlation_id", "N/A")
         start_time = time.time()
-        
-        # Skip logging for CORS preflight requests (OPTIONS) to reduce log noise
-        skip_logging = request.method == "OPTIONS"
 
-        if not skip_logging:
-            logger.info(
-                f"[{request_id}] {request.method} {request.url.path} | "
-                f"Correlation-ID: {correlation_id}"
-            )
+        # Log incoming request
+        logger.info(
+            f"[{request_id}] {request.method} {request.url.path} | "
+            f"Correlation-ID: {correlation_id}"
+        )
 
         try:
             response = await call_next(request)
         except HTTPException as exc:
             duration = time.time() - start_time
-            if not skip_logging:
-                logger.warning(
-                    f"[{request_id}] Request failed with status {exc.status_code} | "
-                    f"Duration: {duration:.3f}s"
-                )
+            logger.warning(
+                f"[{request_id}] Request failed with status {exc.status_code} | "
+                f"Duration: {duration:.3f}s"
+            )
             raise
 
-        # Log response (skip OPTIONS to reduce noise)
-        if not skip_logging:
-            duration = time.time() - start_time
-            logger.info(
-                f"[{request_id}] {request.method} {request.url.path} | "
-                f"Status: {response.status_code} | Duration: {duration:.3f}s"
-            )
+        # Log response
+        duration = time.time() - start_time
+        logger.info(
+            f"[{request_id}] {request.method} {request.url.path} | "
+            f"Status: {response.status_code} | Duration: {duration:.3f}s"
+        )
 
         return response
 

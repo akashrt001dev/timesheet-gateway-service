@@ -130,7 +130,7 @@ class Settings(BaseSettings):
     # ========================================================================
     # REQUEST CONFIGURATION
     # ========================================================================
-    request_timeout_seconds: int = Field(default=30, alias="REQUEST_TIMEOUT_SECONDS")
+    request_timeout_seconds: int = Field(default=3600, alias="REQUEST_TIMEOUT_SECONDS")
 
     # ========================================================================
     # KEYCLOAK/OAUTH2 CONFIGURATION

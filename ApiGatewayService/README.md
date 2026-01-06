@@ -291,7 +291,7 @@ curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
 | `ENTITY_SERVICE_URL` | http://localhost:8003 | Entity service URL |
 | `TIMESHEET_SERVICE_URL` | http://localhost:8004 | Timesheet service URL |
 | `LOG_LEVEL` | INFO | Logging level (DEBUG, INFO, WARNING, ERROR) |
-| `REQUEST_TIMEOUT_SECONDS` | 30 | Gateway request timeout |
+| `REQUEST_TIMEOUT_SECONDS` | 3600 | Gateway request timeout |
 | `CORS_ORIGINS` | * | Allowed CORS origins |
 | `CORS_CREDENTIALS` | true | Allow credentials in CORS |
 | `CORS_METHODS` | GET,POST,PUT,DELETE,OPTIONS | Allowed HTTP methods |

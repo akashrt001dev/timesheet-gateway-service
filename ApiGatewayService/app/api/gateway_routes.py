@@ -537,17 +537,25 @@ async def gateway_route(request: Request, path: str = ""):
     # Normalize path
     full_path = f"/{path}" if path else "/"
     
-    # Handle CORS preflight requests (OPTIONS) - bypass authentication
+    # ========================================================================
+    # CORS PREFLIGHT REQUEST HANDLING (OPTIONS)
+    # ========================================================================
+    # OPTIONS requests (CORS preflight) must be handled at the gateway level
+    # WITHOUT forwarding to backend services or triggering authentication.
+    # The CORSMiddleware should catch this, but we provide a fallback here
+    # to ensure OPTIONS requests never reach upstream services.
+    # ========================================================================
     if request.method == "OPTIONS":
-        logger.debug(f"CORS preflight request: {full_path}")
+        logger.debug(f"CORS preflight request: OPTIONS {full_path}")
         return StreamingResponse(
             content=iter([]),
             status_code=200,
             headers={
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD",
-                "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, Origin",
+                "Access-Control-Allow-Headers": "*",
                 "Access-Control-Max-Age": "3600",
+                "Content-Length": "0",
             },
         )
     

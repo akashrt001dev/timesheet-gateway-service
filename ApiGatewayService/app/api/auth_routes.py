@@ -9,7 +9,7 @@ from urllib.parse import urlencode
 
 import httpx
 from fastapi import APIRouter, HTTPException, status, Request
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, Response
 
 from app.core.config import get_settings
 
@@ -23,7 +23,74 @@ oauth2_router = APIRouter(tags=["OAuth2"])
 logout_router = APIRouter(tags=["Authentication"])
 
 
-@router.get("/login", name="Keycloak Login")
+# ============================================================================
+# CORS OPTIONS HANDLERS - Handle preflight requests at gateway level
+# ============================================================================
+@router.options("/login", name="Keycloak Login Options")
+async def login_options():
+    """
+    Handle CORS preflight request for /auth/login endpoint.
+    Returns 200 OK with CORS headers.
+    """
+    logger.debug("CORS preflight request: OPTIONS /auth/login")
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        }
+    )
+
+
+@router.options("/logout", name="Keycloak Logout Options")
+async def logout_options():
+    """
+    Handle CORS preflight request for /auth/logout endpoint.
+    Returns 200 OK with CORS headers.
+    """
+    logger.debug("CORS preflight request: OPTIONS /auth/logout")
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        }
+    )
+
+
+@oauth2_router.options("/login/oauth2/code/{provider_or_realm}", name="OAuth2 Callback Options")
+async def oauth2_callback_options(provider_or_realm: str):
+    """
+    Handle CORS preflight request for OAuth2 callback endpoint.
+    Returns 200 OK with CORS headers.
+    """
+    logger.debug(f"CORS preflight request: OPTIONS /login/oauth2/code/{provider_or_realm}")
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        }
+    )
+
+
+@logout_router.options("/logout", name="Logout Options")
+async def logout_no_prefix_options():
+    """
+    Handle CORS preflight request for /logout endpoint (without /auth prefix).
+    Returns 200 OK with CORS headers.
+    """
+    logger.debug("CORS preflight request: OPTIONS /logout")
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        }
+    )
+
+
+
 async def login():
     """
     Redirect user to Keycloak login page (OIDC Authorization Code Flow)
